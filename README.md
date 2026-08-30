@@ -26,7 +26,7 @@ Không cần cài Xcode đầy đủ. Không cần Homebrew, không dependency n
 **1. Tải mã nguồn về và build**
 
 ```bash
-git clone https://github.com/OWNER/autotype.git && cd autotype && ./build.sh
+git clone https://github.com/wblekhoa/autotype.git && cd autotype && ./build.sh
 ```
 
 Script sẽ biên dịch rồi đặt `AutoType.app` vào `~/Applications`. Kéo vào Dock cho tiện.
@@ -119,7 +119,7 @@ cat ~/Library/Logs/AutoType.log
 ## Gỡ cài đặt
 
 ```bash
-rm -rf ~/Applications/AutoType.app && defaults delete com.jak.autotype
+rm -rf ~/Applications/AutoType.app && defaults delete com.lekhoa.autotype
 ```
 
 Rồi bỏ AutoType khỏi danh sách Trợ năng.

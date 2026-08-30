@@ -136,7 +136,7 @@ struct Hotkey: Equatable {
 // ============================ Thiết lập ============================
 
 struct Prefs {
-    private static let d = UserDefaults(suiteName: "com.jak.autotype") ?? .standard
+    private static let d = UserDefaults(suiteName: "com.lekhoa.autotype") ?? .standard
 
     static var pool: Pool {
         // object(forKey:) chứ KHÔNG phải integer(forKey:) — integer trả 0 khi key

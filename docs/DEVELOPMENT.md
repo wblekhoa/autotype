@@ -11,7 +11,7 @@ Toàn bộ app nằm trong `AutoType.swift` (~650 dòng), dựng UI bằng code,
 | `Pool` | 5 bộ ký tự: chữ · số · chữ+số · toàn bàn phím (ASCII 33–126) · tự nhập |
 | `Typist.type` | Bắn `CGEvent` từng ký tự, `flags = []`, mang Unicode |
 | `Hotkey.isHeld` | `CGEventSource.keyState` (phím chính) + `NSEvent.modifierFlags` (modifier) |
-| `Prefs` | `UserDefaults` suite `com.jak.autotype`, khoá tiền tố `v2.` |
+| `Prefs` | `UserDefaults` suite `com.lekhoa.autotype`, khoá tiền tố `v2.` |
 | `Log` | Ghi `~/Library/Logs/AutoType.log` |
 | `MainWindowController` | 2 timer 25 Hz: một canh phím tắt, một bơm ký tự |
 
@@ -81,5 +81,4 @@ Bug "chạy ở app này, không chạy ở app kia" **không chẩn đoán đư
 
 ## 5. Điểm còn lởm chởm
 
-- **Bundle id `vn.dolenglish.autotype` nhưng prefs domain `com.jak.autotype`** — lệch nhau do lịch sử. Đổi được nhưng đổi bundle id là mất quyền Trợ năng, phải cấp lại.
 - Chưa có test tự động. Cách kiểm đã dùng: gõ vào một tài liệu trống rồi **so khớp từng ký tự với chuỗi kỳ vọng**, không chỉ đếm — bug rơi đuôi từng lọt qua mọi phép đếm.

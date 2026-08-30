@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 SRC="AutoType.swift"
 OUT="AutoType.app"
 DEST="$HOME/Applications"
-BUNDLE_ID="vn.dolenglish.autotype"
+BUNDLE_ID="com.lekhoa.autotype"
 
 echo "▶ Compiling $SRC …"
 rm -rf "$OUT"
