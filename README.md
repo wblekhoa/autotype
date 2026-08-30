@@ -4,42 +4,57 @@ Giữ một phím tắt → ký tự tuôn ra liên tục vào ô bạn đang g�
 
 App macOS nhỏ, một file Swift, không cần Xcode project. Dùng để: test font, đổ text lấp chỗ trong Figma, stress-test ô nhập liệu, sinh dữ liệu rác có kiểm soát.
 
-> **English**: A tiny macOS utility that floods the focused text field with characters while you hold a global hotkey. Single-file Swift, no Xcode project — build it yourself with the included script. See "Cài đặt" below; commands are language-independent.
-
----
-
-## Cần gì trước
-
-- **macOS 13 trở lên**
-- **Xcode Command Line Tools** (để có `swiftc`). Chưa có thì chạy:
-
-```bash
-xcode-select --install
-```
-
-Không cần cài Xcode đầy đủ. Không cần Homebrew, không dependency nào khác.
+> **English**: A tiny macOS utility that floods the focused text field with characters while you hold a global hotkey. One-line install (no dev tools needed):
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh | bash
+> ```
+>
+> Then enable **AutoType** under System Settings → Privacy & Security → Accessibility. macOS 13+. Universal binary (Intel + Apple Silicon). Hold ⌃⌘T to type, Esc to stop.
 
 ---
 
 ## Cài đặt
 
-**1. Tải mã nguồn về và build**
+Dán một dòng này vào Terminal (Spotlight → gõ "Terminal"):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh | bash
+```
+
+Xong. **Không cần cài Xcode, không cần công cụ lập trình nào**, không có cảnh báo bảo mật.
+
+Script tải bản dựng sẵn (92 KB, chạy cả máy Intel lẫn Apple Silicon), đặt vào `~/Applications`, mở app, rồi mở sẵn đúng trang cấp quyền cho bạn.
+
+Yêu cầu: **macOS 13 trở lên**. Không có yêu cầu nào khác.
+
+Muốn xem script làm gì trước khi chạy thì mở [`install.sh`](install.sh) — nó ngắn, đọc được.
+
+### Bước duy nhất phải tự làm
+
+macOS **không cho phép** app nào tự cấp cho mình quyền gõ phím — script không lách được, và không nên lách.
+
+Trong cửa sổ Cài đặt hệ thống mà script vừa mở, **bật công tắc `AutoType`**:
+
+**Quyền riêng tư & Bảo mật → Trợ năng**
+
+Bật xong là dùng được ngay, không cần mở lại app.
+
+### Cập nhật về sau
+
+Chạy lại đúng dòng lệnh trên. Nó thay bản cũ, giữ nguyên thiết lập của bạn.
+
+---
+
+## Cách khác: tự biên dịch từ mã nguồn
+
+Nếu bạn muốn tự build (hoặc đã sửa mã):
 
 ```bash
 git clone https://github.com/wblekhoa/autotype.git && cd autotype && ./build.sh
 ```
 
-Script sẽ biên dịch rồi đặt `AutoType.app` vào `~/Applications`. Kéo vào Dock cho tiện.
-
-**2. Cấp quyền Trợ năng**
-
-macOS chặn mọi app gõ phím hộ cho tới khi bạn cho phép. Mở app → nó tự hỏi → bật **AutoType** trong:
-
-**Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Trợ năng**
-
-App tự soi lại quyền mỗi nửa giây, nên bật xong là dùng được ngay, không cần mở lại.
-
-> Vì bạn tự build trên máy mình nên **không dính cảnh báo Gatekeeper** — app không hề được tải về từ đâu cả.
+Cách này cần **Xcode Command Line Tools** (`xcode-select --install`, khoảng 2 GB). Không cần Xcode đầy đủ.
 
 ---
 
