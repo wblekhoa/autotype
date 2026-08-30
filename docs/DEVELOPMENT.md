@@ -87,6 +87,22 @@ Nay bọc trong `NSScrollView` (cần `FlippedView` để nội dung xếp từ 
 
 Hai nghi vấn đầu suýt được ghi vào tài liệu như lỗi thật. **Đo trước khi ghi.**
 
+## 3.10 Gate: `./verify.sh`
+
+Một lệnh chạy hết 12 kiểm tra, exit 0 nghĩa là đủ điều kiện phát hành. Chạy trong `HOME` cô lập nên **không đụng app đang cài trên máy bạn**.
+
+```bash
+./verify.sh
+```
+
+Phủ: `build.sh` · `package.sh` · universal binary · icon trong bundle · cài từ bản dựng sẵn · `--check` mã 0 · `--check` mã 2 (máy thiếu công cụ) · nhánh dự phòng tự biên dịch · hash Typist · gõ thật ở 200/1000/2000 ký tự mỗi giây.
+
+**Harness gõ (`tools/make-harness.sh`) TIÊM nguyên văn `enum Typist` từ `AutoType.swift`** thay vì chép tay — gate so hash hai bên, nên test không thể trôi khỏi mã thật. Harness tự mở cửa sổ, tự làm frontmost, tự gõ vào chính nó; không app nào của người dùng bị đụng.
+
+Nó **tách bạch "mất focus" khỏi "rơi ký tự"**: mất focus giữa chừng trả `inconclusive=true` và được thử lại, chứ không đổ oan cho engine. Không có phân biệt này thì một lần Terminal cướp focus sẽ thành một báo cáo bug sai.
+
+Chạy `./verify.sh` trước mỗi lần phát hành.
+
 ## 4. Chẩn đoán
 
 Log ghi các mốc: `KHỞI ĐỘNG` (phím tắt · chế độ · công tắc · quyền) · `LỆCH` (bấm nhầm tổ hợp) · `START` (app đích · secureInput · pool) · `TỪ CHỐI` (lý do) · `STOP` (số ký tự đã gửi).

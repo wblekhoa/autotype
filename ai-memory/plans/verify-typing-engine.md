@@ -20,12 +20,17 @@ Nhánh: `auto/verify-typing-engine` · tách từ `main` @ 4fa227b
       0 vô hiệu, 0 rơi. Ma trận 100/500/1000/2000 cps × 500 ký tự: 8/8 khớp.
       Hai lần chập chờn ban đầu là do TEST mất focus, không phải engine —
       harness giờ tách bạch `inconclusive=true` khỏi rơi ký tự thật.
-- [ ] P3 sửa theo phát hiện
+- [x] P3 sửa: build.sh/package.sh không còn SẬP khi thiếu AutoType.icns
+      (một file trang trí từng làm hỏng cả bản build vì set -e + cp)
 - [x] P4 `./verify.sh` — 12 kiểm tra, exit 0. Chạy trong HOME cô lập nên
       không đụng app đang cài. Gồm: build.sh · package.sh · universal ·
       icon · cài bản dựng sẵn · --check mã 0 · --check mã 2 · nhánh dự
       phòng · hash Typist · 3 mức tốc độ gõ.
-- [ ] P5 re-audit + tài liệu
+- [x] P5 re-audit vòng 1: 4 khoảng trống, đã bịt hết
+      · icns thiếu làm sập build → nay chỉ cảnh báo
+      · .gitignore thiếu AutoType.iconset/
+      · verify.sh chép cả .git → nay chỉ chép file git theo dõi
+      · không tài liệu nào nhắc verify.sh → đã thêm §3.10
 
 ## PARK (không tự làm)
 - Cấp quyền Trợ năng cho AutoType.app — chỉ user bấm được. Chặn việc verify

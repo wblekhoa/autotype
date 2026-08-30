@@ -46,7 +46,13 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-cp AutoType.icns "$OUT/Contents/Resources/AutoType.icns"
+# Icon chỉ là trang trí — thiếu thì cảnh báo rồi đi tiếp, tuyệt đối không
+# để một file .icns làm sập cả bản build.
+if [ -f AutoType.icns ]; then
+  cp AutoType.icns "$OUT/Contents/Resources/AutoType.icns"
+else
+  echo "  ! thiếu AutoType.icns — app sẽ dùng icon mặc định (chạy: swift make-icon.swift)"
+fi
 
 codesign --force --sign - "$OUT"
 

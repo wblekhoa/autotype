@@ -14,7 +14,8 @@ SB="$(mktemp -d)"; trap 'rm -rf "$SB"' EXIT
 mkdir -p "$SB/stub"; printf '#!/bin/bash\ntrue\n' > "$SB/stub/open"; chmod +x "$SB/stub/open"
 
 head_ "1. Biên dịch"
-( cd "$SB" && cp -R "$ROOT" src >/dev/null 2>&1 && cd src && env HOME="$SB" ./build.sh >/dev/null 2>&1 ) \
+( mkdir -p "$SB/src" && cd "$ROOT" && git ls-files -z | xargs -0 -I{} ditto "{}" "$SB/src/{}" \
+  && cd "$SB/src" && env HOME="$SB" ./build.sh >/dev/null 2>&1 ) \
   && [ -x "$SB/Applications/AutoType.app/Contents/MacOS/AutoType" ] \
   && ok "build.sh ra app chạy được" || no "build.sh"
 
