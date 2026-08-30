@@ -1,0 +1,5 @@
+# Bản build — ai clone về cũng tự chạy ./build.sh sinh lại
+AutoType.app/
+*.app/
+
+.DS_Store
