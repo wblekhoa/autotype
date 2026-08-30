@@ -32,6 +32,12 @@ Nhánh: `auto/verify-typing-engine` · tách từ `main` @ 4fa227b
       · verify.sh chép cả .git → nay chỉ chép file git theo dõi
       · không tài liệu nào nhắc verify.sh → đã thêm §3.10
 
+## Vòng 2
+- [x] P6 test logic thuần: `tools/make-logic-test.sh` tiêm nguyên văn
+      `enum Pool` + `struct Hotkey`, 17 assertion. Đây đúng chỗ từng sinh
+      bug `Prefs.pool` dùng nhầm `integer(forKey:)`.
+- Gate nay: **14 đạt · 0 hỏng · exit 0**
+
 ## PARK (không tự làm)
 - Cấp quyền Trợ năng cho AutoType.app — chỉ user bấm được. Chặn việc verify
   luồng phím-tắt → gõ (khác với engine gõ, cái này verify được).

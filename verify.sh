@@ -73,6 +73,21 @@ if swiftc -O -swift-version 5 -framework AppKit -framework CoreGraphics -framewo
   done
 else no "không biên dịch được harness"; fi
 
+head_ "4. Logic thuần (Pool + Hotkey)"
+./tools/make-logic-test.sh "$SB/lg.swift" >/dev/null 2>&1
+la=$(awk '/^enum Pool/{f=1} f{print} f&&/^\}/{exit}' AutoType.swift | shasum -a 256 | cut -d' ' -f1)
+lb=$(awk '/^enum Pool/{f=1} f{print} f&&/^\}/{exit}' "$SB/lg.swift" | shasum -a 256 | cut -d' ' -f1)
+[ "$la" = "$lb" ] && ok "test dùng NGUYÊN VĂN enum Pool của app (hash khớp)" || no "enum Pool trong test đã lệch"
+
+if swiftc -O -swift-version 5 -framework AppKit -o "$SB/lg" "$SB/lg.swift" >/dev/null 2>&1; then
+  out="$("$SB/lg" 2>&1)"
+  if echo "$out" | grep -q "LOGIC OK"; then
+    ok "$(echo "$out" | grep -c '    ok ') assertion về Pool/Hotkey đều đạt"
+  else
+    no "logic hỏng:"; echo "$out" | grep "HỎNG" | sed 's/^/      /'
+  fi
+else no "không biên dịch được test logic"; fi
+
 head_ "Kết quả"
 printf '  %d đạt · %d hỏng\n\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
