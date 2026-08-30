@@ -15,8 +15,11 @@ Nhánh: `auto/verify-typing-engine` · tách từ `main` @ 4fa227b
 
 ## Tiến độ
 - [x] P0 trạng thái + nhánh + sổ
-- [ ] P1 harness hứng ký tự + typer dùng lại mã Typist
-- [ ] P2 đo độ trung thực nhiều mức tốc độ
+- [x] P1 harness `tools/make-harness.sh` — TIÊM nguyên văn enum Typist (hash khớp)
+- [x] P2 đo độ trung thực: 8/8 lượt @2000cps × 400 ký tự khớp tuyệt đối,
+      0 vô hiệu, 0 rơi. Ma trận 100/500/1000/2000 cps × 500 ký tự: 8/8 khớp.
+      Hai lần chập chờn ban đầu là do TEST mất focus, không phải engine —
+      harness giờ tách bạch `inconclusive=true` khỏi rơi ký tự thật.
 - [ ] P3 sửa theo phát hiện
 - [ ] P4 verify.sh gộp mọi gate
 - [ ] P5 re-audit + tài liệu
