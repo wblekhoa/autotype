@@ -64,6 +64,14 @@ Cách này cần **Xcode Command Line Tools** (`xcode-select --install`, khoản
 
 Mở app một lần, chỉnh cho vừa ý, rồi để đó. Từ giờ chỉ cần phím tắt.
 
+### Cửa sổ và thanh menu
+
+App có **biểu tượng bàn phím trên thanh menu** — bấm vào đó để mở lại cửa sổ, bật/tắt nhanh phím tắt, hoặc thoát hẳn.
+
+**Đóng cửa sổ không tắt app.** Phím tắt vẫn chạy tiếp — đóng chỉ để dọn màn hình. Muốn tắt hẳn thì dùng menu **Thoát AutoType** trên thanh menu.
+
+Cửa sổ **kéo giãn được**, và nội dung tự cuộn nếu màn hình bạn thấp.
+
 ### Công tắc BẬT / TẮT (trên cùng)
 
 Công tắc chủ. **Tắt** = phím tắt ngừng hoạt động hoàn toàn, bàn phím trả lại nguyên vẹn cho bạn — cứ để app mở mà không sợ lỡ tay. Đang gõ dở mà tắt thì dừng luôn.
@@ -95,7 +103,7 @@ Phím tắt mặc định **⌃⌘T**, đổi được trong app.
 ### Số lượng và tốc độ
 
 - **Số lượt** — chỉ áp dụng cho chế độ *bấm một phát*.
-- **Vô hạn** — gõ tới khi bấm Esc.
+- **Vô hạn** — gõ tới khi bấm Esc, và **tự dừng sau 60 giây** như phanh thứ hai. Esc là phanh chính, nhưng một số app có thể nuốt phím Esc nên cần đường dừng dự phòng. Muốn gõ tiếp thì kích hoạt lại.
 - **Tốc độ** — ký tự mỗi giây, tối đa 2000. App đích nuốt ký tự thì hạ xuống.
 
 ---

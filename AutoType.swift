@@ -193,6 +193,10 @@ struct Prefs {
     }
 }
 
+/// Gốc toạ độ ở góc trên-trái. Không có lớp này thì nội dung trong NSScrollView
+/// xếp ngược từ dưới lên.
+final class FlippedView: NSView { override var isFlipped: Bool { true } }
+
 // ============================ Cửa sổ chính ============================
 
 final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegate {
@@ -209,6 +213,8 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
     private var hotkeyButton: NSButton!
     private var statusLabel: NSTextField!
     private var permWarning: NSTextField!
+    private var statusItem: NSStatusItem?
+    private var armMenuItem: NSMenuItem!
     private var armSwitch: NSSwitch!
     private var armLabel: NSTextField!
 
@@ -231,15 +237,20 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
     private var typedThisRun = 0
 
     private let tickHz = 25.0
+    /// Phanh thứ hai cho chế độ vô hạn. Esc là phanh thứ nhất, nhưng app đích có
+    /// thể nuốt Esc — một thứ bơm 2000 ký tự/giây không nên chỉ có một đường dừng.
+    private let maxRunSeconds = 60.0
+    private var runStartedAt = Date.distantPast
 
     // ---- dựng UI ----
 
     func show() {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 500),
-                         styleMask: [.titled, .closable, .miniaturizable],
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 470, height: 640),
+                         styleMask: [.titled, .closable, .miniaturizable, .resizable],
                          backing: .buffered, defer: false)
         w.title = "AutoType"
         w.delegate = self
+        w.isReleasedWhenClosed = false
         w.center()
         window = w
 
@@ -340,17 +351,47 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         statusLabel = Self.label("Sẵn sàng. Bấm Esc bất cứ lúc nào để dừng khẩn cấp.", size: 12)
         stack.addArrangedSubview(statusLabel)
 
+        // Trước đây stack chỉ neo trên/trái/phải nên nội dung tràn xuống dưới khung
+        // và biến mất — cửa sổ lại cố định kích thước nên không kéo ra xem được.
+        let doc = FlippedView()
+        doc.translatesAutoresizingMaskIntoConstraints = false
+        doc.addSubview(stack)
+
+        let scroll = NSScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.drawsBackground = false
+        scroll.documentView = doc
+
         let content = NSView()
-        content.addSubview(stack)
+        content.addSubview(scroll)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: content.topAnchor),
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: content.topAnchor),
+            scroll.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            scroll.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+
+            stack.topAnchor.constraint(equalTo: doc.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: doc.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: doc.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: doc.bottomAnchor),
+            doc.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
         ])
+
+        // Chữ xuống dòng và đường kẻ phải giãn theo bề ngang cửa sổ, không thì
+        // kéo rộng ra sẽ thấy chúng đứng yên một cục lệch bên trái.
+        for v in stack.arrangedSubviews where v is NSBox || v is NSTextField {
+            if let t = v as? NSTextField, t.lineBreakMode != .byWordWrapping { continue }
+            v.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40).isActive = true
+        }
+
         w.contentView = content
+        w.minSize = NSSize(width: 430, height: 360)
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
+        setupStatusItem()
         startWatching()
         refreshPermissionWarning()
         refreshArmLabel()
@@ -367,14 +408,12 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         let t = NSTextField(labelWithString: s)
         t.font = .systemFont(ofSize: size)
         t.lineBreakMode = .byWordWrapping
-        t.preferredMaxLayoutWidth = 415
         return t
     }
 
     private static func separator() -> NSBox {
         let b = NSBox()
         b.boxType = .separator
-        b.widthAnchor.constraint(equalToConstant: 415).isActive = true
         return b
     }
 
@@ -397,6 +436,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
     private func refreshArmLabel() {
         let on = Prefs.armed
         armLabel.stringValue = on ? "Đang BẬT — phím tắt sẵn sàng" : "Đang TẮT — phím tắt không hoạt động"
+        armMenuItem?.title = on ? "Tắt phím tắt" : "Bật phím tắt"
         armLabel.textColor = on ? .systemGreen : .secondaryLabelColor
         if !running {
             statusLabel.stringValue = on
@@ -551,6 +591,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         remaining = (infiniteOverride || Prefs.infinite) ? -1 : Prefs.count
         seqIndex = 0
         typedThisRun = 0
+        runStartedAt = Date()
         running = true
         statusLabel.stringValue = "Đang gõ…"
         Log.write("START · app đích = \(Log.frontApp) · secureInput = \(IsSecureEventInputEnabled()) · pool = \(chars.count) ký tự · remaining = \(remaining)")
@@ -565,6 +606,10 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         // Người dùng bấm ⌘Tab về AutoType giữa chừng → dừng, đừng gõ vào ô của mình.
         guard !isSelfFrontmost else {
             stop(reason: "Đã dừng: cửa sổ AutoType được chọn nên không gõ tiếp.")
+            return
+        }
+        guard Date().timeIntervalSince(runStartedAt) < maxRunSeconds else {
+            stop(reason: "Đã tự dừng sau \(Int(maxRunSeconds)) giây (phanh an toàn). Kích hoạt lại để gõ tiếp.")
             return
         }
         let perTick = max(1, Int((Double(Prefs.charsPerSecond) / tickHz).rounded()))
@@ -624,7 +669,50 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         }
     }
 
+    /// Đóng cửa sổ KHÔNG thoát app — phím tắt phải sống tiếp. Đây là điểm khác
+    /// biệt của một tiện ích chạy nền: người dùng đóng cửa sổ để dọn màn hình,
+    /// không phải để tắt chức năng. Mở lại từ biểu tượng bàn phím trên thanh menu.
     func windowWillClose(_ notification: Notification) {
+        if running { stop(reason: "") }
+    }
+
+    // ---- thanh menu ----
+
+    private func setupStatusItem() {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        let img = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "AutoType")
+        img?.isTemplate = true
+        item.button?.image = img
+        item.button?.toolTip = "AutoType"
+
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Mở cửa sổ AutoType", action: #selector(showWindowFromMenu), keyEquivalent: ""))
+        menu.addItem(.separator())
+        armMenuItem = NSMenuItem(title: "Tắt phím tắt", action: #selector(toggleArmFromMenu), keyEquivalent: "")
+        menu.addItem(armMenuItem)
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Thoát AutoType", action: #selector(quitFromMenu), keyEquivalent: "q"))
+        for mi in menu.items { mi.target = self }
+        item.menu = menu
+        statusItem = item
+    }
+
+    func reopenWindow() { showWindowFromMenu() }
+
+    @objc private func showWindowFromMenu() {
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func toggleArmFromMenu() {
+        let on = !Prefs.armed
+        Prefs.armed = on
+        armSwitch.state = on ? .on : .off
+        if !on, running { stop(reason: "Đã tắt — dừng giữa chừng.") }
+        refreshArmLabel()
+    }
+
+    @objc private func quitFromMenu() {
         stop(reason: "")
         watchTimer?.invalidate()
         NSApp.terminate(nil)
@@ -643,7 +731,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.show()
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { true }
+    /// false: đóng cửa sổ không thoát app. App sống tiếp trên thanh menu để phím
+    /// tắt còn hoạt động — thoát hẳn bằng menu "Thoát AutoType".
+    func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
+
+    /// Đóng cửa sổ rồi bấm icon trên Dock → mở lại, thay vì không có phản hồi gì.
+    func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { controller.reopenWindow() }
+        return true
+    }
 }
 
 let app = NSApplication.shared

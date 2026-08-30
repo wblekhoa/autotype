@@ -69,6 +69,24 @@ Bộ ghi phím tắt ban đầu không có hạn giờ → nằm chờ vô thờ
 
 Chữa tận gốc nếu vòng lặp phát triển quá đau: ký bằng **self-signed certificate cố định** thay vì ad-hoc `-`, để designated requirement không đổi giữa các build.
 
+## 3.8 Cửa sổ phải cuộn được, không chỉ vừa mắt lúc viết
+
+Stack ban đầu chỉ neo trên/trái/phải, **không neo đáy** — nội dung tràn xuống dưới khung và biến mất, mà cửa sổ lại cố định kích thước nên không kéo ra xem được. Người dùng chỉ thấy giao diện cụt mà không hiểu vì sao.
+
+Nay bọc trong `NSScrollView` (cần `FlippedView` để nội dung xếp từ trên xuống), neo đủ 4 cạnh, `.resizable` trong styleMask, và các nhãn xuống dòng + đường kẻ neo bề ngang theo stack thay vì đặt cứng 415pt.
+
+**Bài học: bất kỳ giao diện dựng bằng code nào cũng phải neo đủ 4 cạnh.** Thiếu neo đáy là lỗi im lặng — không cảnh báo, không crash, chỉ mất nội dung.
+
+## 3.9 Số đo từ đợt audit (2026-08-30)
+
+| Nghi vấn | Đo được | Kết luận |
+|---|---|---|
+| 2000 ký tự/giây có nghẽn không | ~21.000 ký tự/giây (bắn vào chính pid mình để không lọt ra ngoài) | Thừa gấp 10 — khâu gửi KHÔNG phải nút thắt |
+| Mở 2 lần có gõ nhân đôi không | `open` hai lần → vẫn 1 tiến trình | macOS tự gộp, không cần khoá đơn-bản |
+| Quyền thực thi `.command` sống qua git + ZIP? | `100755` trong git, `-rwxr-xr-x` sau giải nén | Đường bấm-đúp vững |
+
+Hai nghi vấn đầu suýt được ghi vào tài liệu như lỗi thật. **Đo trước khi ghi.**
+
 ## 4. Chẩn đoán
 
 Log ghi các mốc: `KHỞI ĐỘNG` (phím tắt · chế độ · công tắc · quyền) · `LỆCH` (bấm nhầm tổ hợp) · `START` (app đích · secureInput · pool) · `TỪ CHỐI` (lý do) · `STOP` (số ký tự đã gửi).

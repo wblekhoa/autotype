@@ -35,6 +35,7 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
 	<key>CFBundleDisplayName</key><string>AutoType</string>
 	<key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
 	<key>CFBundleExecutable</key><string>AutoType</string>
+	<key>CFBundleIconFile</key><string>AutoType</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<key>CFBundleShortVersionString</key><string>$VERSION</string>
 	<key>CFBundleVersion</key><string>$VERSION</string>
@@ -44,6 +45,8 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
+
+cp AutoType.icns "$OUT/Contents/Resources/AutoType.icns"
 
 codesign --force --sign - "$OUT"
 

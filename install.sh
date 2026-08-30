@@ -65,6 +65,17 @@ fi
 
 if [[ $CHECK_ONLY -eq 1 ]]; then
   say ""
+  if [[ "$source_kind" == "need-tools" ]]; then
+    # Không có bản dựng sẵn VÀ máy chưa có swiftc → chưa cài ngay được.
+    say "  Máy này CHƯA cài ngay được."
+    say "  Cần Xcode Command Line Tools trước (khoảng 2 GB):"
+    say ""
+    say "      xcode-select --install"
+    say ""
+    say "  Cài xong, chạy lại lệnh cài là được."
+    say ""
+    exit 2
+  fi
   say "  Máy này chạy được AutoType."
   say "  Chạy lại không kèm --check để cài thật."
   say ""
