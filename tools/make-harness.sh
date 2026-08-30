@@ -1,118 +1,87 @@
 #!/bin/bash
-# Sinh harness kiểm chứng engine gõ, TIÊM nguyên văn enum Typist từ AutoType.swift.
-# Chép tay sẽ lệch lúc nào không hay; tiêm thì test luôn test đúng mã đang chạy.
+# Sinh CẶP binary đo engine gõ: bên nhận + bên gõ, HAI tiến trình riêng.
+#
+# Vì sao không đo trong cùng một tiến trình: bản in-process mất ~4 ký tự đầu một
+# cách ổn định dù đã mồi, trong khi bản hai-tiến-trình sạch 3/3. Tiến trình tự
+# bắn vào chính mình có nhiễu riêng mà người dùng không bao giờ gặp — đo như thế
+# là đo sai thứ. AutoType luôn gõ SANG app khác.
+#
+# Cả hai bên TIÊM nguyên văn enum Typist từ AutoType.swift, không chép tay.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-OUT="${1:-/tmp/autotype-harness.swift}"
+DIR="${1:?cần thư mục đích}"
+mkdir -p "$DIR"
 
-# lấy trọn enum Typist { ... } từ dòng mở tới dấu } ở cột 0
-awk '/^enum Typist \{/{f=1} f{print} f&&/^\}/{exit}' AutoType.swift > /tmp/.typist.swift
-lines=$(wc -l < /tmp/.typist.swift)
-[ "$lines" -gt 10 ] || { echo "không trích được enum Typist (chỉ $lines dòng)" >&2; exit 1; }
+awk '/^enum Typist \{/{f=1} f{print} f&&/^\}/{exit}' AutoType.swift > "$DIR/.typist"
+[ "$(wc -l < "$DIR/.typist")" -gt 10 ] || { echo "không trích được enum Typist" >&2; exit 1; }
 
-cat > "$OUT" <<'HEAD'
-// SINH TỰ ĐỘNG bởi tools/make-harness.sh — đừng sửa tay.
-// Tự mở cửa sổ, tự làm app frontmost, tự gõ vào chính mình rồi đối chiếu.
-// Không đụng tới bất kỳ app nào của người dùng.
+cat > "$DIR/recv.swift" <<'R'
+// SINH TỰ ĐỘNG — bên nhận. Mở ô văn bản, chờ, in ra đúng thứ nhận được.
 import AppKit
-import CoreGraphics
-import Carbon.HIToolbox
-
-HEAD
-cat /tmp/.typist.swift >> "$OUT"
-rm -f /tmp/.typist.swift
-
-cat >> "$OUT" <<'TAIL'
-
-// ── kịch bản đo ──────────────────────────────────────────────────────
-let args = CommandLine.arguments
-let cps   = Int(args.count > 1 ? args[1] : "200") ?? 200
-let total = Int(args.count > 2 ? args[2] : "200") ?? 200
-let pool: [Character] = (33...126).map { Character(UnicodeScalar($0)!) }
-
-final class Harness: NSObject, NSApplicationDelegate {
+let seconds = Double(CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "6") ?? 6
+final class D: NSObject, NSApplicationDelegate {
     var tv: NSTextView!
-    var expected = ""
-
     func applicationDidFinishLaunching(_ n: Notification) {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 300),
-                         styleMask: [.titled], backing: .buffered, defer: false)
-        w.title = "AutoType harness"
+        let w = NSWindow(contentRect: NSRect(x:0,y:0,width:460,height:240),
+                         styleMask:[.titled], backing:.buffered, defer:false)
+        w.title = "AutoType harness — bên nhận"
         let sv = NSScrollView(frame: w.contentView!.bounds)
-        tv = NSTextView(frame: sv.bounds)
-        tv.isRichText = false
-        tv.isEditable = true
-        sv.documentView = tv
-        w.contentView = sv
+        tv = NSTextView(frame: sv.bounds); tv.isRichText = false
+        sv.documentView = tv; w.contentView = sv
         w.center(); w.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        w.makeFirstResponder(tv)
-
-        // Chờ CÓ ĐIỀU KIỆN thay vì ngủ một khoảng ăn may: lần chạy đầu từng
-        // trượt sạch (got=0) vì gõ khi cửa sổ chưa kịp thành key.
-        var waited = 0.0
-        func whenReady() {
-            let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
-            let isSelf = front == ProcessInfo.processInfo.processIdentifier
-            if w.isKeyWindow && isSelf && AXIsProcessTrusted() {
-                print("DIAG sẵn sàng sau \(String(format: "%.2f", waited))s · secureInput=\(IsSecureEventInputEnabled())")
-                self.run(); return
-            }
-            guard waited < 5.0 else {
-                print("DIAG KHÔNG sẵn sàng sau 5s: key=\(w.isKeyWindow) self=\(isSelf) trusted=\(AXIsProcessTrusted())")
-                NSApp.terminate(nil); return
-            }
-            waited += 0.1
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { whenReady() }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { whenReady() }
-    }
-
-    func run() {
-        // Bắt chước đúng nhịp bơm của app: 25 tick/giây, mỗi tick một cụm.
-        let tickHz = 25.0
-        let perTick = max(1, Int((Double(cps) / tickHz).rounded()))
-        var sent = 0
-        var seed: UInt64 = 0x9E3779B97F4A7C15
-        func rnd() -> Int { seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17; return Int(seed % UInt64(pool.count)) }
-
-        func tick() {
-            guard sent < total else { self.finish(); return }
-            // Mất focus giữa chừng KHÔNG phải engine rơi ký tự — phải tách bạch,
-            // nếu không sẽ báo oan cho engine và đi sửa nhầm chỗ.
-            let frontPid = NSWorkspace.shared.frontmostApplication?.processIdentifier
-            guard frontPid == ProcessInfo.processInfo.processIdentifier,
-                  self.tv.window?.isKeyWindow == true else {
-                print("RESULT cps=\(cps) sent=\(self.expected.count) got=\(self.tv.string.count) exact=false inconclusive=true lydo=mat-focus-giua-chung")
-                NSApp.terminate(nil); return
-            }
-            var chunk = ""
-            for _ in 0..<min(perTick, total - sent) { chunk.append(pool[rnd()]) }
-            self.expected += chunk
-            Typist.type(chunk)
-            sent += chunk.count
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0/tickHz) { tick() }
-        }
-        tick()
-    }
-
-    func finish() {
-        // Chờ hàng đợi sự kiện của hệ thống ráo hẳn rồi mới đọc.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            let got = self.tv.string
-            let okCount = got.count == self.expected.count
-            let okExact = got == self.expected
-            var prefix = 0
-            for (a, b) in zip(got, self.expected) { if a != b { break }; prefix += 1 }
-            print("RESULT cps=\(cps) sent=\(self.expected.count) got=\(got.count) exact=\(okExact) inconclusive=false prefix=\(prefix)")
-            NSApp.terminate(nil)
+        NSApp.activate(ignoringOtherApps: true); w.makeFirstResponder(tv)
+        print("READY"); fflush(stdout)
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            // chỉ lấy phần SAU chuỗi mốc cuối cùng
+            let raw = self.tv.string
+            let mark = "<<<>>>"
+            let payload = raw.range(of: mark, options: .backwards)
+                .map { String(raw[$0.upperBound...]) } ?? raw
+            print("GOT=\(payload.count)"); print("TEXT=\(payload)")
+            fflush(stdout); NSApp.terminate(nil)
         }
     }
 }
+let a = NSApplication.shared; a.setActivationPolicy(.regular)
+let d = D(); a.delegate = d; a.run()
+R
 
-let app = NSApplication.shared
-app.setActivationPolicy(.regular)
-let d = Harness(); app.delegate = d
-app.run()
-TAIL
-echo "  đã sinh $OUT (tiêm $lines dòng Typist nguyên văn)"
+{
+  echo "// SINH TỰ ĐỘNG — bên gõ. Dùng NGUYÊN VĂN Typist của app."
+  echo "import AppKit"; echo "import CoreGraphics"; echo "import Foundation"
+  cat "$DIR/.typist"
+  cat <<'S'
+
+let cps   = Int(CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "200") ?? 200
+let total = Int(CommandLine.arguments.count > 2 ? CommandLine.arguments[2] : "400") ?? 400
+let pool: [Character] = (33...126).map { Character(UnicodeScalar($0)!) }
+
+// App thật mồi đường ống lúc khởi động — bên gõ phải làm y hệt để đo đúng
+// đường mà người dùng thực sự đi.
+// Mồi rồi gõ một chuỗi MỐC. Rác mồi (2 ký tự 'a', đo được) rơi TRƯỚC mốc nên
+// bên nhận chỉ lấy phần sau mốc — loại sạch nhiễu của chính phép đo.
+// App thật không cần mốc: nó mồi lúc khởi động, rác rơi vào cửa sổ của chính nó.
+Typist.primePipeline()
+Thread.sleep(forTimeInterval: 0.5)
+let MARK = "<<<>>>"
+Typist.type(MARK)
+Thread.sleep(forTimeInterval: 0.6)
+
+var seed: UInt64 = 0x9E3779B97F4A7C15
+func rnd() -> Int { seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17; return Int(seed % UInt64(pool.count)) }
+
+let tickHz = 25.0
+let perTick = max(1, Int((Double(cps) / tickHz).rounded()))
+var sent = ""
+while sent.count < total {
+    var chunk = ""
+    for _ in 0..<min(perTick, total - sent.count) { chunk.append(pool[rnd()]) }
+    Typist.type(chunk); sent += chunk
+    Thread.sleep(forTimeInterval: 1.0 / tickHz)
+}
+Thread.sleep(forTimeInterval: 1.5)
+FileHandle.standardOutput.write("SENT=\(sent)\n".data(using: .utf8)!)
+S
+} > "$DIR/send.swift"
+rm -f "$DIR/.typist"
+echo "  đã sinh $DIR/recv.swift + $DIR/send.swift"

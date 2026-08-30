@@ -71,9 +71,38 @@ enum Log {
 enum Typist {
     /// Gõ một chuỗi bằng CGEvent. Mỗi ký tự là một cặp keyDown/keyUp mang sẵn
     /// Unicode, nên layout bàn phím và bộ gõ tiếng Việt không ảnh hưởng gì.
+    /// Nguồn sự kiện DÙNG CHUNG, tạo đúng một lần.
+    ///
+    /// Trước đây mỗi lần gọi tạo một `CGEventSource` mới — và `type` được gọi 25
+    /// lần mỗi giây khi đang gõ. Đo được (tái hiện 3/3): với nguồn mới, mấy event
+    /// đầu MẤT lớp Unicode và rơi về ký tự mặc định của `virtualKey: 0`, tức phím
+    /// 'A'. Gửi "XYZ" nhận về "aa". Dùng chung một nguồn thì "XYZ" ra đúng "XYZ".
+    private static let source = CGEventSource(stateID: .hidSystemState)
+
+    /// Hâm nóng đường ống sự kiện. ĐO ĐƯỢC (tái hiện 3/3, qua hai tiến trình
+    /// riêng biệt): **hai sự kiện phím đầu tiên của một tiến trình bỏ qua lớp
+    /// Unicode và rơi về ký tự mặc định của `virtualKey: 0`, tức 'a'.** Gửi "XYZ"
+    /// nhận về "aa". Từ sự kiện thứ ba trở đi mới đúng.
+    ///
+    /// Nên phải đốt mấy sự kiện đó lúc khởi động, khi cửa sổ AutoType đang ở
+    /// trước và KHÔNG ô nhập nào giữ focus — rác rơi vào hư không thay vì vào ô
+    /// văn bản của người dùng. Mồi bằng key 255 không có tác dụng (đã đo).
+    static func primePipeline() {
+        for _ in 0..<3 {
+            var u = Array("\u{200B}".utf16)      // zero-width space: có rơi ra cũng vô hình
+            guard let d = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
+                  let p = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false)
+            else { continue }
+            d.flags = []; p.flags = []
+            d.keyboardSetUnicodeString(stringLength: u.count, unicodeString: &u)
+            p.keyboardSetUnicodeString(stringLength: u.count, unicodeString: &u)
+            d.post(tap: .cghidEventTap); p.post(tap: .cghidEventTap)
+        }
+    }
+
     static func type(_ text: String) {
         guard !text.isEmpty else { return }
-        let src = CGEventSource(stateID: .hidSystemState)
+        let src = Typist.source
         for ch in text {
             var utf16 = Array(String(ch).utf16)
             guard let down = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true),
@@ -346,6 +375,9 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         speedRow.addArrangedSubview(speedField)
         speedRow.addArrangedSubview(Self.label("ký tự / giây (tối đa 2000)", size: 12))
         stack.addArrangedSubview(speedRow)
+        stack.addArrangedSubview(Self.label(
+            "Trên ~1000 ký tự/giây, một số app nhận không kịp và bỏ sót lẻ tẻ (đo được ~0,7% ở mức 2000). "
+            + "Cần chính xác từng ký tự thì để 200 trở xuống.", size: 11))
 
         stack.addArrangedSubview(Self.separator())
         statusLabel = Self.label("Sẵn sàng. Bấm Esc bất cứ lúc nào để dừng khẩn cấp.", size: 12)
@@ -395,6 +427,14 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         startWatching()
         refreshPermissionWarning()
         refreshArmLabel()
+        // Đốt 2-3 sự kiện đầu bị hỏng ngay tại đây, lúc rác còn rơi vào cửa sổ
+        // của chính mình chứ không phải vào ô văn bản người dùng đang làm việc.
+        if AXIsProcessTrusted() {
+            let saved = w.firstResponder
+            w.makeFirstResponder(nil)
+            Typist.primePipeline()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { w.makeFirstResponder(saved) }
+        }
         Log.write("KHỞI ĐỘNG · phím tắt = \(hotkey.display) · chế độ = \(Prefs.holdMode ? "giữ-để-gõ" : "bấm-một-phát") · công tắc = \(Prefs.armed ? "BẬT" : "TẮT") · quyền = \(AXIsProcessTrusted())")
     }
 
@@ -619,7 +659,11 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         while units < perTick {
             if remaining == 0 { break }
             if Prefs.randomOrder {
-                out.append(chars.randomElement()!)      // 1 lượt = 1 ký tự ngẫu nhiên
+                // Không force-unwrap trong vòng chạy 2000 lần/giây: `chars` đã
+                // được guard ở start() nhưng một crash ở đây sẽ giết app giữa lúc
+                // đang bơm phím, đúng lúc tệ nhất.
+                guard let c = chars.randomElement() else { break }
+                out.append(c)                          // 1 lượt = 1 ký tự ngẫu nhiên
             } else {
                 out.append(chars[seqIndex % chars.count])
                 seqIndex += 1

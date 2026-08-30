@@ -104,7 +104,9 @@ Phím tắt mặc định **⌃⌘T**, đổi được trong app.
 
 - **Số lượt** — chỉ áp dụng cho chế độ *bấm một phát*.
 - **Vô hạn** — gõ tới khi bấm Esc, và **tự dừng sau 60 giây** như phanh thứ hai. Esc là phanh chính, nhưng một số app có thể nuốt phím Esc nên cần đường dừng dự phòng. Muốn gõ tiếp thì kích hoạt lại.
-- **Tốc độ** — ký tự mỗi giây, tối đa 2000. App đích nuốt ký tự thì hạ xuống.
+- **Tốc độ** — ký tự mỗi giây, tối đa 2000.
+
+> **Đo được:** ở **200 ký tự/giây trở xuống**, ký tự tới nơi **chính xác từng cái một**. Từ khoảng 1000 trở lên, app nhận bắt đầu bỏ sót lẻ tẻ — ~0,7% ở mức 2000. Đây là giới hạn của bên nhận, không phải lỗi engine. Cần chuẩn từng ký tự thì để 200 trở xuống; cần đổ thật nhanh và không quan trọng vài ký tự thì đẩy lên cao.
 
 ---
 

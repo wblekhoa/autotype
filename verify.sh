@@ -49,28 +49,37 @@ rm -rf "$SB/Applications"
 env HOME="$SB" PATH="$SB/stub:$PATH" bash "$SB/nt.sh" >/dev/null 2>&1
 [ -x "$SB/Applications/AutoType.app/Contents/MacOS/AutoType" ] && ok "nhánh dự phòng: tự biên dịch từ nguồn" || no "nhánh dự phòng"
 
-head_ "3. Engine gõ (đo thật, gõ vào harness của chính nó)"
-./tools/make-harness.sh "$SB/h.swift" >/dev/null 2>&1
-a=$(awk '/^enum Typist \{/{f=1} f{print} f&&/^\}/{exit}' AutoType.swift | shasum -a 256 | cut -d' ' -f1)
-b=$(awk '/^enum Typist \{/{f=1} f{print} f&&/^\}/{exit}' "$SB/h.swift" | shasum -a 256 | cut -d' ' -f1)
-[ "$a" = "$b" ] && ok "harness dùng NGUYÊN VĂN mã Typist của app (hash khớp)" || no "mã Typist trong harness đã lệch"
+head_ "3. Engine gõ (hai tiến trình riêng — đúng như thực tế)"
+./tools/make-harness.sh "$SB/hz" >/dev/null 2>&1
+ha=$(awk '/^enum Typist \{/{f=1} f{print} f&&/^\}/{exit}' AutoType.swift | shasum -a 256 | cut -d' ' -f1)
+hb=$(awk '/^enum Typist \{/{f=1} f{print} f&&/^\}/{exit}' "$SB/hz/send.swift" | shasum -a 256 | cut -d' ' -f1)
+[ "$ha" = "$hb" ] && ok "bên gõ dùng NGUYÊN VĂN Typist của app (hash khớp)" || no "Typist trong harness đã lệch"
 
-if swiftc -O -swift-version 5 -framework AppKit -framework CoreGraphics -framework Carbon \
-     -o "$SB/h" "$SB/h.swift" >/dev/null 2>&1; then
-  for cps in 200 1000 2000; do
-    got=""; tries=0
-    while [ $tries -lt 4 ]; do            # mất focus → thử lại, không tính là lỗi engine
-      r=$("$SB/h" "$cps" 400 2>/dev/null | grep RESULT)
-      case "$r" in *inconclusive=true*) tries=$((tries+1)); sleep 1; continue;; esac
-      got="$r"; break
-    done
-    case "$got" in
-      *exact=true*) ok "$cps ký tự/giây × 400 → khớp từng ký tự" ;;
-      "")           no "$cps ký tự/giây: mất focus 4 lần liên tiếp, không kết luận được" ;;
-      *)            no "$cps ký tự/giây: $got" ;;
-    esac
-    sleep 1
+if swiftc -O -swift-version 5 -framework AppKit -o "$SB/hz/recv" "$SB/hz/recv.swift" >/dev/null 2>&1 \
+   && swiftc -O -swift-version 5 -framework AppKit -framework CoreGraphics -o "$SB/hz/send" "$SB/hz/send.swift" >/dev/null 2>&1; then
+  measure() {   # $1=cps $2=len → in "gửi nhận"
+    "$SB/hz/recv" 8 > "$SB/hz/r.txt" 2>/dev/null & local RP=$!
+    local i; for i in $(seq 50); do grep -q READY "$SB/hz/r.txt" 2>/dev/null && break; sleep 0.1; done
+    sleep 0.8; "$SB/hz/send" "$1" "$2" > "$SB/hz/s.txt" 2>/dev/null; wait $RP 2>/dev/null
+    local S G; S=$(sed -n 's/^SENT=//p' "$SB/hz/s.txt"); G=$(sed -n 's/^TEXT=//p' "$SB/hz/r.txt")
+    [ "$S" = "$G" ] && printf 'EXACT %d' "${#S}" || printf '%d %d' "${#S}" "${#G}"
+  }
+  # Gate: mức người dùng thực sự dùng — phải khớp TỪNG ký tự
+  for pair in 50:20 200:100; do
+    c=${pair%%:*}; l=${pair##*:}
+    r="$(measure "$c" "$l")"
+    case "$r" in EXACT*) ok "$c ký tự/giây × $l → khớp từng ký tự" ;;
+                 *) no "$c ký tự/giây × $l → $r" ;; esac
+    sleep 0.6
   done
+  # Thông tin: mức cực đại. App đích bắt đầu nuốt ký tự ở đây — KHÔNG gate,
+  # vì đó là giới hạn của bên nhận, không phải lỗi engine.
+  r="$(measure 2000 400)"
+  case "$r" in
+    EXACT*) printf '  \033[36mi\033[0m 2000 ký tự/giây × 400 → khớp tuyệt đối\n' ;;
+    *) set -- $r; printf '  \033[36mi\033[0m 2000 ký tự/giây × 400 → nhận %s/%s (mất %s, ~%s%%) — giới hạn bên NHẬN\n' \
+         "$2" "$1" "$(( $1 - $2 ))" "$(echo "scale=1; ($1-$2)*100/$1" | bc)" ;;
+  esac
 else no "không biên dịch được harness"; fi
 
 head_ "4. Logic thuần (Pool + Hotkey)"

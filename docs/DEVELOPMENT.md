@@ -87,6 +87,29 @@ Nay bọc trong `NSScrollView` (cần `FlippedView` để nội dung xếp từ 
 
 Hai nghi vấn đầu suýt được ghi vào tài liệu như lỗi thật. **Đo trước khi ghi.**
 
+## 3.11 Hai sự kiện phím ĐẦU TIÊN của mỗi tiến trình bị hỏng
+
+Đo được, tái hiện 3/3 **qua hai tiến trình riêng biệt**: gửi `"XYZ"` nhận về `"aa"`. Hai event đầu **bỏ qua lớp Unicode** và rơi về ký tự mặc định của `virtualKey: 0` — tức phím 'A'. Từ event thứ ba trở đi mới đúng.
+
+Đã thử và LOẠI các cách sau (đều đo, không đoán):
+- Dùng chung một `CGEventSource` thay vì tạo mới mỗi lần → **không phải nguyên nhân**. Kết luận ngược ban đầu của tôi đến từ phép thử có nhiễu: biến thể "nguồn chung" chạy SAU biến thể kia nên hệ thống đã nóng sẵn. Đảo thứ tự thì cả hai đều ra `aa`.
+- Mồi bằng `virtualKey: 255` → vô tác dụng (và key 255 không sinh ký tự nào cả).
+- Mồi 6 hay 10 lần thay vì 3 → không khá hơn 3.
+
+Cách đang dùng: `Typist.primePipeline()` đốt 3 event lúc **khởi động app**, khi cửa sổ AutoType đang ở trước và `makeFirstResponder(nil)` đã bỏ focus khỏi mọi ô nhập — rác rơi vào hư không thay vì vào ô văn bản người dùng.
+
+**Chưa kiểm chứng được:** mồi có thật sự không làm hỏng thiết lập khi app CÓ quyền Trợ năng. Lần đo gần nhất `quyền = false` nên nhánh mồi không chạy. Rủi ro có thật vì app từng tự gõ vào ô của chính mình (§3.4).
+
+## 3.12 Tốc độ cao thì bên NHẬN bỏ sót — đã định lượng
+
+| Tốc độ × độ dài | Kết quả (3 lượt mỗi mức) |
+|---|---|
+| 50 ký tự/giây × 20 | khớp từng ký tự |
+| 200 ký tự/giây × 100 | khớp từng ký tự |
+| 1000–2000 × 400 | 397/400 — mất ~0,75% |
+
+Đây là **giới hạn của app nhận**, không phải engine: engine bắn được ~21.000 ký tự/giây (§3.9). Gate vì thế chỉ chặn ở hai mức đầu và in mức 2000 làm thông tin — chặn ở mức 2000 sẽ là bắt engine chịu trách nhiệm cho thứ nó không điều khiển được.
+
 ## 3.10 Gate: `./verify.sh`
 
 Một lệnh chạy hết 12 kiểm tra, exit 0 nghĩa là đủ điều kiện phát hành. Chạy trong `HOME` cô lập nên **không đụng app đang cài trên máy bạn**.
@@ -95,11 +118,13 @@ Một lệnh chạy hết 12 kiểm tra, exit 0 nghĩa là đủ điều kiện 
 ./verify.sh
 ```
 
-Phủ: `build.sh` · `package.sh` · universal binary · icon trong bundle · cài từ bản dựng sẵn · `--check` mã 0 · `--check` mã 2 (máy thiếu công cụ) · nhánh dự phòng tự biên dịch · hash Typist · gõ thật ở 200/1000/2000 ký tự mỗi giây.
+Phủ: `build.sh` · `package.sh` · universal binary · icon trong bundle · cài từ bản dựng sẵn · `--check` mã 0 · `--check` mã 2 (máy thiếu công cụ) · nhánh dự phòng tự biên dịch · hash Typist · hash Pool · 17 assertion logic · gõ thật ở 50 và 200 ký tự/giây (chặn) + 2000 (thông tin).
 
-**Harness gõ (`tools/make-harness.sh`) TIÊM nguyên văn `enum Typist` từ `AutoType.swift`** thay vì chép tay — gate so hash hai bên, nên test không thể trôi khỏi mã thật. Harness tự mở cửa sổ, tự làm frontmost, tự gõ vào chính nó; không app nào của người dùng bị đụng.
+**Harness sinh ra HAI tiến trình riêng** (bên gõ + bên nhận), vì AutoType luôn gõ SANG app khác. Bản in-process cũ mất ~4 ký tự đầu một cách ổn định dù đã mồi — nhiễu riêng của việc tự bắn vào chính mình, thứ người dùng không bao giờ gặp. Đo như thế là đo sai đối tượng.
 
-Nó **tách bạch "mất focus" khỏi "rơi ký tự"**: mất focus giữa chừng trả `inconclusive=true` và được thử lại, chứ không đổ oan cho engine. Không có phân biệt này thì một lần Terminal cướp focus sẽ thành một báo cáo bug sai.
+Cả hai bên **TIÊM nguyên văn `enum Typist` từ `AutoType.swift`** thay vì chép tay — gate so hash, nên test không thể trôi khỏi mã thật. Không app nào của người dùng bị đụng.
+
+Bên gõ mồi rồi phát một **chuỗi mốc** trước payload; bên nhận chỉ lấy phần sau mốc. Rác mồi rơi trước mốc nên không lẫn vào phép đo.
 
 Chạy `./verify.sh` trước mỗi lần phát hành.
 
