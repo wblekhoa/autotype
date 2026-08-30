@@ -3,3 +3,5 @@ AutoType.app/
 *.app/
 
 .DS_Store
+AutoType.zip
+.build-tmp/
