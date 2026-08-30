@@ -28,6 +28,8 @@ Script tải bản dựng sẵn (92 KB, chạy cả máy Intel lẫn Apple Silic
 
 Yêu cầu: **macOS 13 trở lên**. Không có yêu cầu nào khác.
 
+**Không mở được Terminal?** Có đường bấm đúp trong Finder — xem [INSTALL.md](INSTALL.md#cách-2--bấm-đúp-không-cần-terminal). Đường đó phải bấm qua một cảnh báo bảo mật của macOS, nên chậm hơn cách trên.
+
 Muốn xem script làm gì trước khi chạy thì mở [`install.sh`](install.sh) — nó ngắn, đọc được.
 
 ### Bước duy nhất phải tự làm

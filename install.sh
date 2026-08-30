@@ -1,9 +1,14 @@
 #!/bin/bash
-# AutoType — cài đặt một dòng
-#   curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh | bash
+# AutoType — trình cài đặt
 #
-# Ưu tiên tải bản dựng sẵn (không cần công cụ lập trình nào).
-# Không tải được thì tự build từ mã nguồn, và tự bật trình cài Command Line Tools nếu thiếu.
+#   Cách 1 (nhanh nhất, không cảnh báo bảo mật):
+#     curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh | bash
+#
+#   Cách 2 (không cần Terminal):
+#     Bấm đúp "Install AutoType.command" trong thư mục đã giải nén.
+#
+#   Thử máy có chạy được không mà chưa cài gì:
+#     ... install.sh | bash -s -- --check
 set -euo pipefail
 
 REPO="wblekhoa/autotype"
@@ -11,75 +16,132 @@ APP="AutoType.app"
 DEST="$HOME/Applications"
 ZIP_URL="https://github.com/$REPO/releases/latest/download/AutoType.zip"
 SRC_URL="https://codeload.github.com/$REPO/tar.gz/refs/heads/main"
+MIN_MACOS=13
 
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+CHECK_ONLY=0
+[[ "${1:-}" == "--check" ]] && CHECK_ONLY=1
 
-say()  { printf '%s\n' "$*"; }
-ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
-warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
-die()  { printf '\n  \033[31m✗ %s\033[0m\n\n' "$*" >&2; exit 1; }
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+step_n=0
+
+say()  { printf '%b\n' "$*"; }
+step() { step_n=$((step_n+1)); printf '\n  \033[1mBước %d/%d\033[0m  %s\n' "$step_n" "$1" "$2"; }
+ok()   { printf '    \033[32m✔\033[0m %s\n' "$*"; }
+warn() { printf '    \033[33m!\033[0m %s\n' "$*"; }
+fail() { printf '\n  \033[31m✗ Dừng lại [%s]\033[0m\n    %s\n\n' "$1" "$2" >&2; exit 1; }
+
+TOTAL=3; [[ $CHECK_ONLY -eq 1 ]] && TOTAL=1
 
 say ""
-say "  AutoType — đang cài"
-say "  ─────────────────────────────────────────"
+say "  ─────────────────────────────────────────────"
+say "  AutoType — gõ phím tự động bằng phím tắt"
+say "  ─────────────────────────────────────────────"
 
-# ── 1. Kiểm tra macOS ────────────────────────────────────────────────
-major="$(sw_vers -productVersion | cut -d. -f1)"
-[ "$major" -ge 13 ] 2>/dev/null || die "Cần macOS 13 trở lên (máy này: $(sw_vers -productVersion))."
-ok "macOS $(sw_vers -productVersion)"
+# ── Bước 1: kiểm tra máy ─────────────────────────────────────────────
+step $TOTAL "Kiểm tra máy này"
 
-# ── 2. Lấy app: ưu tiên bản dựng sẵn ─────────────────────────────────
-got_app=""
-if curl -fsSL --max-time 60 -o "$TMP/AutoType.zip" "$ZIP_URL" 2>/dev/null; then
-  if ditto -x -k "$TMP/AutoType.zip" "$TMP/unpacked" 2>/dev/null \
-     && [ -x "$TMP/unpacked/$APP/Contents/MacOS/AutoType" ]; then
-    got_app="$TMP/unpacked/$APP"
-    ok "Tải bản dựng sẵn ($(cd "$TMP" && du -h AutoType.zip | cut -f1)) — không cần công cụ lập trình"
-  fi
+os="$(sw_vers -productVersion)"
+[[ "${os%%.*}" -ge $MIN_MACOS ]] 2>/dev/null \
+  || fail "macos_qua_cu" "Cần macOS $MIN_MACOS trở lên. Máy này đang chạy macOS $os."
+ok "macOS $os"
+ok "Chip $(uname -m)"
+
+if [[ -d "$DEST/$APP" ]]; then
+  warn "Đã có bản cũ ở $DEST/$APP — sẽ thay bằng bản mới, thiết lập giữ nguyên"
 fi
 
-# ── 3. Không có bản dựng sẵn → build từ nguồn ────────────────────────
-if [ -z "$got_app" ]; then
-  warn "Không lấy được bản dựng sẵn, chuyển sang tự biên dịch."
-  if ! command -v swiftc >/dev/null 2>&1; then
-    warn "Máy chưa có Xcode Command Line Tools (khoảng 2GB)."
-    say  ""
-    say  "  Đang bật trình cài của Apple — bấm \"Install\" trong hộp thoại vừa hiện."
-    say  "  Cài xong, chạy lại đúng lệnh này là được."
-    say  ""
-    xcode-select --install >/dev/null 2>&1 || true
-    exit 0
-  fi
-  curl -fsSL --max-time 120 -o "$TMP/src.tar.gz" "$SRC_URL" || die "Không tải được mã nguồn. Kiểm tra mạng."
-  mkdir -p "$TMP/src" && tar -xzf "$TMP/src.tar.gz" -C "$TMP/src" --strip-components=1
-  ( cd "$TMP/src" && ./build.sh >/dev/null 2>&1 ) || die "Biên dịch thất bại."
-  got_app="$TMP/src/$APP"
-  [ -x "$got_app/Contents/MacOS/AutoType" ] || die "Biên dịch xong nhưng không ra app."
-  ok "Đã tự biên dịch xong"
+# Chọn nguồn lấy app, chưa tải gì cả
+source_kind=""
+if curl -fsIL --max-time 20 "$ZIP_URL" >/dev/null 2>&1; then
+  source_kind="prebuilt"
+  ok "Có bản dựng sẵn — không cần công cụ lập trình nào"
+elif command -v swiftc >/dev/null 2>&1; then
+  source_kind="build"
+  warn "Không có bản dựng sẵn, nhưng máy đã có swiftc nên tự biên dịch được"
+else
+  source_kind="need-tools"
+  warn "Cần Xcode Command Line Tools (khoảng 2 GB) để tự biên dịch"
 fi
 
-# ── 4. Cài vào ~/Applications ────────────────────────────────────────
+if [[ $CHECK_ONLY -eq 1 ]]; then
+  say ""
+  say "  Máy này chạy được AutoType."
+  say "  Chạy lại không kèm --check để cài thật."
+  say ""
+  exit 0
+fi
+
+# ── Kế hoạch: nói trước sẽ làm gì, rồi mới làm ───────────────────────
+say ""
+say "  \033[1mSẽ làm những việc sau:\033[0m"
+case "$source_kind" in
+  prebuilt)   say "    · Tải AutoType (khoảng 92 KB) từ GitHub Releases" ;;
+  build)      say "    · Tải mã nguồn rồi biên dịch ngay trên máy bạn" ;;
+  need-tools) say "    · Bật trình cài Xcode Command Line Tools của Apple" ;;
+esac
+say "    · Đặt app vào $DEST"
+say "    · Mở app và mở sẵn trang cấp quyền Trợ năng"
+say ""
+say "  Không dùng sudo. Không sửa shell profile. Không đụng file nào khác."
+
+# ── Bước 2: lấy app ──────────────────────────────────────────────────
+step $TOTAL "Lấy app"
+
+if [[ "$source_kind" == "need-tools" ]]; then
+  say ""
+  say "    Đang bật trình cài của Apple — bấm \"Install\" trong hộp thoại vừa hiện,"
+  say "    chờ nó xong, rồi chạy lại đúng lệnh này."
+  say ""
+  xcode-select --install >/dev/null 2>&1 || true
+  exit 0
+fi
+
+got=""
+if [[ "$source_kind" == "prebuilt" ]]; then
+  curl -fsSL --max-time 90 -o "$TMP/a.zip" "$ZIP_URL" \
+    || fail "tai_that_bai" "Không tải được bản dựng sẵn. Kiểm tra kết nối mạng rồi thử lại."
+  ditto -x -k "$TMP/a.zip" "$TMP/x" \
+    || fail "giai_nen_hong" "File tải về bị lỗi. Chạy lại lệnh cài để tải lại."
+  got="$TMP/x/$APP"
+  ok "Đã tải và giải nén"
+else
+  curl -fsSL --max-time 180 -o "$TMP/s.tgz" "$SRC_URL" \
+    || fail "tai_nguon_that_bai" "Không tải được mã nguồn. Kiểm tra kết nối mạng."
+  mkdir -p "$TMP/s" && tar -xzf "$TMP/s.tgz" -C "$TMP/s" --strip-components=1
+  ( cd "$TMP/s" && ./build.sh >/dev/null 2>&1 ) \
+    || fail "bien_dich_that_bai" "Biên dịch thất bại. Thử chạy ./build.sh thủ công để xem lỗi."
+  got="$TMP/s/$APP"
+  ok "Đã biên dịch xong"
+fi
+
+[[ -x "$got/Contents/MacOS/AutoType" ]] \
+  || fail "app_khong_hop_le" "Lấy được file nhưng bên trong không phải app chạy được."
+
+# ── Bước 3: cài + mở ─────────────────────────────────────────────────
+step $TOTAL "Cài vào $DEST"
+
 pkill -f "$APP/Contents/MacOS/AutoType" 2>/dev/null || true
 sleep 1
 mkdir -p "$DEST"
 rm -rf "${DEST:?}/$APP"
-ditto "$got_app" "$DEST/$APP"
+ditto "$got" "$DEST/$APP"
 xattr -dr com.apple.quarantine "$DEST/$APP" 2>/dev/null || true
-[ -x "$DEST/$APP/Contents/MacOS/AutoType" ] || die "Cài xong nhưng app không chạy được."
-ok "Đã cài vào $DEST/$APP"
+[[ -x "$DEST/$APP/Contents/MacOS/AutoType" ]] \
+  || fail "cai_that_bai" "Chép xong nhưng app không chạy được. Kiểm tra dung lượng trống."
+ok "Xong"
 
-# ── 5. Mở app + mở đúng trang cấp quyền ──────────────────────────────
-open "$DEST/$APP"
+open "$DEST/$APP" 2>/dev/null || true
 sleep 2
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility" 2>/dev/null || true
 
-say "  ─────────────────────────────────────────"
 say ""
-say "  Còn đúng một bước — macOS bắt buộc, không tự động được:"
+say "  ─────────────────────────────────────────────"
+say "  \033[1mCòn đúng một bước — macOS bắt buộc\033[0m"
 say ""
-say "    Trong cửa sổ Cài đặt hệ thống vừa mở, BẬT công tắc \"AutoType\"."
+say "  Trong cửa sổ Cài đặt hệ thống vừa mở, bật công tắc \033[1mAutoType\033[0m."
+say "  macOS không cho phép app nào tự cấp quyền gõ phím cho chính nó."
 say ""
-say "  Xong là dùng được ngay, không cần mở lại app."
-say "  Giữ ⌃⌘T trong ô văn bản bất kỳ để gõ · Esc để dừng."
+say "  Bật xong dùng được ngay, không cần mở lại app:"
+say "    Giữ \033[1m⌃⌘T\033[0m trong ô văn bản bất kỳ để gõ · \033[1mEsc\033[0m để dừng"
+say "  ─────────────────────────────────────────────"
 say ""
