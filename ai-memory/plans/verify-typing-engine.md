@@ -21,7 +21,10 @@ Nhánh: `auto/verify-typing-engine` · tách từ `main` @ 4fa227b
       Hai lần chập chờn ban đầu là do TEST mất focus, không phải engine —
       harness giờ tách bạch `inconclusive=true` khỏi rơi ký tự thật.
 - [ ] P3 sửa theo phát hiện
-- [ ] P4 verify.sh gộp mọi gate
+- [x] P4 `./verify.sh` — 12 kiểm tra, exit 0. Chạy trong HOME cô lập nên
+      không đụng app đang cài. Gồm: build.sh · package.sh · universal ·
+      icon · cài bản dựng sẵn · --check mã 0 · --check mã 2 · nhánh dự
+      phòng · hash Typist · 3 mức tốc độ gõ.
 - [ ] P5 re-audit + tài liệu
 
 ## PARK (không tự làm)
