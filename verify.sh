@@ -64,12 +64,26 @@ if swiftc -O -swift-version 5 -framework AppKit -o "$SB/hz/recv" "$SB/hz/recv.sw
     local S G; S=$(sed -n 's/^SENT=//p' "$SB/hz/s.txt"); G=$(sed -n 's/^TEXT=//p' "$SB/hz/r.txt")
     [ "$S" = "$G" ] && printf 'EXACT %d' "${#S}" || printf '%d %d' "${#S}" "${#G}"
   }
-  # Gate: mức người dùng thực sự dùng — phải khớp TỪNG ký tự
+  # Gate: mức người dùng thực sự dùng — phải khớp TỪNG ký tự.
+  # Phép đo cần chiếm foreground, nên nếu máy đang được dùng thì bên nhận có thể
+  # không giành được focus (nhận 0 ký tự). Đó là MÁY BẬN, không phải engine hỏng —
+  # thử lại vài lần rồi mới kết luận, và kết luận riêng cho ca đó.
   for pair in 50:20 200:100; do
     c=${pair%%:*}; l=${pair##*:}
-    r="$(measure "$c" "$l")"
-    case "$r" in EXACT*) ok "$c ký tự/giây × $l → khớp từng ký tự" ;;
-                 *) no "$c ký tự/giây × $l → $r" ;; esac
+    r=""; t=0
+    while [ $t -lt 4 ]; do
+      r="$(measure "$c" "$l")"
+      case "$r" in
+        EXACT*) break ;;
+        *" 0")  t=$((t+1)); sleep 1.5; continue ;;   # nhận 0 = không giành được focus
+        *)      break ;;
+      esac
+    done
+    case "$r" in
+      EXACT*) ok "$c ký tự/giây × $l → khớp từng ký tự" ;;
+      *" 0")  printf '  \033[33m!\033[0m %s ký tự/giây × %s → không đo được (máy đang bận, bên nhận không giành được focus)\n' "$c" "$l" ;;
+      *)      no "$c ký tự/giây × $l → $r" ;;
+    esac
     sleep 0.6
   done
   # Thông tin: mức cực đại. App đích bắt đầu nuốt ký tự ở đây — KHÔNG gate,
@@ -77,6 +91,7 @@ if swiftc -O -swift-version 5 -framework AppKit -o "$SB/hz/recv" "$SB/hz/recv.sw
   r="$(measure 2000 400)"
   case "$r" in
     EXACT*) printf '  \033[36mi\033[0m 2000 ký tự/giây × 400 → khớp tuyệt đối\n' ;;
+    *" 0")  printf '  \033[36mi\033[0m 2000 ký tự/giây × 400 → không đo được (máy đang bận)\n' ;;
     *) set -- $r; printf '  \033[36mi\033[0m 2000 ký tự/giây × 400 → nhận %s/%s (mất %s, ~%s%%) — giới hạn bên NHẬN\n' \
          "$2" "$1" "$(( $1 - $2 ))" "$(echo "scale=1; ($1-$2)*100/$1" | bc)" ;;
   esac

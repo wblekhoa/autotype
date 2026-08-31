@@ -258,6 +258,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
     private var wasHeld = false
     private var permTick = 0
     private var lastMismatchTick = -999
+    private var shoutTimer: Timer?
     private var permButton: NSButton!
     private var running = false
     private var remaining = 0          // số lượt còn lại; -1 = vô hạn
@@ -613,7 +614,11 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         // rồi phím tắt cũ hết tác dụng, trông y như app hỏng. (Đã dính 2026-08-08.)
         guard !isSelfFrontmost else {
             Log.write("TỪ CHỐI · cửa sổ AutoType đang được chọn — không tự gõ vào mình")
-            statusLabel.stringValue = "Hãy chuyển sang app bạn muốn gõ trước, rồi mới bấm phím tắt."
+            // Người dùng đang NHÌN thẳng vào cửa sổ này, nên lời từ chối phải đập
+            // vào mắt. Bản cũ chỉ đổi một dòng chữ xám nhỏ ở đáy — người dùng bấm
+            // phím tắt ba lần liền rồi kết luận "app hỏng" (log 2026-08-31).
+            shout("⚠︎  Bạn đang ở cửa sổ AutoType nên nó không gõ.\n"
+                + "Chuyển sang app bạn muốn gõ (Notes, Chrome, Figma…) rồi bấm \(hotkey.display) ở đó.")
             return
         }
         chars = Prefs.pool.characters(custom: Prefs.customText)
@@ -625,7 +630,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         guard AXIsProcessTrusted() else {
             Log.write("TỪ CHỐI · thiếu quyền Trợ năng · app đích = \(Log.frontApp)")
             refreshPermissionWarning()
-            statusLabel.stringValue = "Thiếu quyền Trợ năng — chưa gõ được."
+            shout("⚠︎  Chưa có quyền Trợ năng nên không gõ được. Bật AutoType trong Trợ năng.")
             return
         }
         remaining = (infiniteOverride || Prefs.infinite) ? -1 : Prefs.count
@@ -678,6 +683,21 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         }
         if remaining == 0 {
             stop(reason: "Xong. Đã gõ \(typedThisRun) ký tự.")
+        }
+    }
+
+    /// Báo lỗi kiểu đập-vào-mắt rồi tự trở lại bình thường.
+    private func shout(_ msg: String) {
+        shoutTimer?.invalidate()
+        statusLabel.stringValue = msg
+        statusLabel.textColor = .systemOrange
+        statusLabel.font = .boldSystemFont(ofSize: 12)
+        NSSound.beep()
+        shoutTimer = Timer.scheduledTimer(withTimeInterval: 6, repeats: false) { [weak self] _ in
+            guard let self else { return }
+            self.statusLabel.textColor = .labelColor
+            self.statusLabel.font = .systemFont(ofSize: 12)
+            self.refreshArmLabel()
         }
     }
 
