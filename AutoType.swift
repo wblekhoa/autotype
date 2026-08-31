@@ -275,7 +275,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
     // ---- dựng UI ----
 
     func show() {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 470, height: 640),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 600),
                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
                          backing: .buffered, defer: false)
         w.title = "AutoType"
@@ -313,7 +313,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         armRow.addArrangedSubview(armSwitch)
         armRow.addArrangedSubview(armLabel)
         stack.addArrangedSubview(armRow)
-        stack.addArrangedSubview(Self.label("Tắt thì phím tắt ngừng hoạt động hoàn toàn — bàn phím trả lại nguyên vẹn cho bạn.", size: 11))
+        stack.addArrangedSubview(Self.label("Tắt thì phím tắt ngừng hẳn, bàn phím trả lại nguyên vẹn cho bạn.", size: 11))
         stack.addArrangedSubview(Self.separator())
 
         stack.addArrangedSubview(Self.header("Ký tự sẽ gõ"))
@@ -359,7 +359,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         countField.delegate = self
         countField.preferredMaxLayoutWidth = 80
         countField.widthAnchor.constraint(equalToConstant: 80).isActive = true
-        infiniteCheck = NSButton(checkboxWithTitle: "Vô hạn (đến khi bấm Esc)", target: self, action: #selector(anyChanged))
+        infiniteCheck = NSButton(checkboxWithTitle: "Vô hạn", target: self, action: #selector(anyChanged))
         infiniteCheck.state = Prefs.infinite ? .on : .off
         countRow.addArrangedSubview(Self.label("Số lượt:", size: 12))
         countRow.addArrangedSubview(countField)
@@ -374,11 +374,12 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         speedField.widthAnchor.constraint(equalToConstant: 80).isActive = true
         speedRow.addArrangedSubview(Self.label("Tốc độ:", size: 12))
         speedRow.addArrangedSubview(speedField)
-        speedRow.addArrangedSubview(Self.label("ký tự / giây (tối đa 2000)", size: 12))
+        speedRow.addArrangedSubview(Self.label("ký tự/giây", size: 12))
         stack.addArrangedSubview(speedRow)
         stack.addArrangedSubview(Self.label(
-            "Trên ~1000 ký tự/giây, một số app nhận không kịp và bỏ sót lẻ tẻ (đo được ~0,7% ở mức 2000). "
-            + "Cần chính xác từng ký tự thì để 200 trở xuống.", size: 11))
+            "Vô hạn = gõ tới khi bấm Esc. Tối đa 2000 ký tự/giây, nhưng trên ~1000 "
+            + "một số app bỏ sót lẻ tẻ (~0,7% ở mức 2000) — cần chuẩn từng ký tự thì để ≤200.",
+            size: 11))
 
         stack.addArrangedSubview(Self.separator())
         statusLabel = Self.label("Sẵn sàng. Bấm Esc bất cứ lúc nào để dừng khẩn cấp.", size: 12)
@@ -420,7 +421,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         }
 
         w.contentView = content
-        w.minSize = NSSize(width: 430, height: 360)
+        w.minSize = NSSize(width: 340, height: 320)
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
