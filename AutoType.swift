@@ -487,9 +487,16 @@ struct ContentView: View {
             }
         }
         .formStyle(.grouped)
-        // Không có maxWidth thì Form nở tới bề rộng tự nhiên của nội dung dài nhất
-        // (đo được 900pt) — rộng hơn cả bản AppKit cũ mà người dùng đã kêu.
-        .frame(minWidth: 380, idealWidth: 420, maxWidth: 420)
+        // Bề ngang: không kẹp maxWidth thì Form nở tới bề rộng tự nhiên của dòng dài
+        // nhất — đo được 900pt, rộng hơn cả bản AppKit cũ mà người dùng đã kêu.
+        //
+        // Chiều cao: idealHeight để rộng rãi rồi ĐỂ .contentSize tự kẹp xuống chiều
+        // cao thật của nội dung (đo được 509pt, đã tính cả banner thiếu quyền — tức
+        // trường hợp cao nhất). Cửa sổ 450pt trước đó thấp hơn nội dung nên macOS
+        // phải sinh thanh cuộn, và thanh đó chạy sát mép các khối. Không tràn thì
+        // không có thanh cuộn — đó mới là cách chữa gốc, thay vì ép ẩn thanh cuộn
+        // và đi ngược thiết lập "Hiện thanh cuộn" của người dùng.
+        .frame(minWidth: 380, idealWidth: 420, maxWidth: 420, minHeight: 360, idealHeight: 900)
     }
 
     private var permissionSection: some View {
