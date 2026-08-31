@@ -171,6 +171,27 @@ then ok "mọi neo nội bộ trong README đều trỏ tới heading có thật
 else no "README có neo trỏ vào heading không tồn tại (xem trên)"
 fi
 
+# Mục "App này làm gì, và không làm gì" hứa 7 điều bằng SỐ. Thêm một lệnh gọi
+# mạng vào app là README lập tức nói dối, mà không gì báo. Đối chiếu lời hứa
+# với mã thật.
+claims_bad=""
+[ "$(grep -cE 'CGEvent\.tapCreate|CGEventTapCreate|addGlobalMonitor' AutoType.swift)" = "0" ] \
+  || claims_bad="$claims_bad event-tap/global-monitor"
+[ "$(grep -cE 'URLSession|CFNetwork|socket\(|http' AutoType.swift)" = "0" ] \
+  || claims_bad="$claims_bad gọi-mạng"
+[ "$(grep -cE 'SMAppService|LaunchAgent|launchd' AutoType.swift)" = "0" ] \
+  || claims_bad="$claims_bad tự-khởi-động"
+[ "$(grep -c '^import' AutoType.swift)" = "$(grep -oE '[0-9]+ framework' README.md | grep -oE '[0-9]+' | head -1)" ] \
+  || claims_bad="$claims_bad số-framework"
+readme_lines="$(grep -oE '\*\*[0-9]+ dòng, 1 file\*\*' README.md | grep -oE '[0-9]+' | head -1)"
+[ "$readme_lines" = "$(wc -l < AutoType.swift | tr -d ' ')" ] \
+  || claims_bad="$claims_bad số-dòng(README=$readme_lines thực=$(wc -l < AutoType.swift | tr -d ' '))"
+if [ -z "$claims_bad" ]; then
+  ok "7 khẳng định minh bạch trong README đều khớp mã thật"
+else
+  no "README hứa sai so với mã:$claims_bad"
+fi
+
 head_ "Kết quả"
 printf '  %d đạt · %d hỏng\n\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

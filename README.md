@@ -103,6 +103,56 @@ Mở **TextEdit**, click vào vùng soạn thảo, **giữ ⌃⌘T** vài giây.
 
 ---
 
+## App này làm gì, và không làm gì
+
+Trợ năng là **quyền rộng**: bất kỳ app nào có nó cũng gửi được phím và đọc được giao diện app khác. Điều đó đúng với mọi app trong danh sách đó, không riêng AutoType. Nên câu hỏi đáng hỏi không phải "quyền này có mạnh không", mà **"app này làm gì với nó"**.
+
+### Làm gì
+
+- **Gửi ký tự** vào app đang được chọn — chỉ khi phím tắt kích hoạt.
+- **Hỏi macOS "phím này có đang được giữ không"** cho đúng **hai** phím: phím tắt bạn tự chọn, và Esc. Đây là câu hỏi về một phím cụ thể, không phải luồng phím.
+- **Từ chối gõ vào chính nó** khi cửa sổ AutoType đang được chọn.
+
+### Không làm gì — và cách bạn tự kiểm
+
+Không cần tin lời README. Mỗi dòng dưới đây kèm lệnh tự chạy được sau khi `git clone`:
+
+| Khẳng định | Tự kiểm bằng | Ra |
+|---|---|---|
+| Không **quan sát** phím bạn gõ ở app khác | `grep -cE 'CGEvent\.tapCreate\|CGEventTapCreate\|addGlobalMonitor' AutoType.swift` | `0` |
+| Không gọi mạng | `grep -cE 'URLSession\|CFNetwork\|socket\(\|http' AutoType.swift` | `0` |
+| Lúc đang chạy cũng không mở kết nối nào | **mở AutoType trước**, rồi `lsof -nP -i \| grep AutoType` | rỗng |
+| Không tự khởi động cùng máy, không chạy nền | `grep -cE 'SMAppService\|LaunchAgent\|launchd' AutoType.swift` | `0` |
+| Không dùng thư viện bên thứ ba | `grep '^import' AutoType.swift` | 4 framework của Apple |
+| Không cần `sudo` ở bất kỳ bước nào | `grep -n sudo install.sh` | chỉ 1 dòng **chữ** nói là không dùng |
+| Đọc hết được trong một buổi | `wc -l AutoType.swift` | **702 dòng, 1 file** |
+
+Bộ ghi phím tắt có dùng `addLocalMonitorForEvents` — **local**, tức chỉ nhận phím khi cửa sổ AutoType đang được chọn, và chỉ bật trong 6 giây sau khi bạn bấm "đổi phím tắt".
+
+### Ghi ra đĩa đúng hai chỗ
+
+**`~/Library/Logs/AutoType.log`** — để chẩn đoán khi app không chạy. Nó ghi **số lượng**, không ghi nội dung: `đã gửi 240 ký tự`, `pool = 94 ký tự`.
+
+Nói cho hết: log **có** ghi **tên app đang được chọn** lúc bạn bấm phím tắt (ví dụ `app đích = TextEdit`) và tên phím tắt bạn đã đặt — cần thế mới chẩn đoán được. Nó **không** ghi ký tự đã gõ, và không thấy được thứ bạn gõ bằng tay. File nằm trên máy bạn, không đi đâu cả. Tự xem:
+
+```bash
+cat ~/Library/Logs/AutoType.log
+```
+
+**`UserDefaults` domain `com.lekhoa.autotype`** — thiết lập của bạn (phím tắt, tốc độ, bộ ký tự).
+
+Xoá sạch cả hai:
+
+```bash
+rm -f ~/Library/Logs/AutoType.log && defaults delete com.lekhoa.autotype
+```
+
+### Còn điều này thì nói thẳng
+
+App **ký ad-hoc, chưa notarize** (`TeamIdentifier` trống) — vì chứng chỉ Apple Developer tốn 99 USD/năm. Hệ quả: macOS chặn ở lần mở đầu nếu bạn tải bằng trình duyệt, và chữ ký không chứng minh được danh tính người viết. Thứ thay thế được đưa ra ở đây là **mã nguồn mở đọc hết được trong một buổi** cùng các lệnh kiểm ở trên.
+
+---
+
 ## Hai chỗ hay vướng nhất
 
 **Bấm phím tắt mà không thấy gì?** Kiểm tra bạn có đang đứng ở **cửa sổ AutoType** không. App cố ý không tự gõ vào ô của chính nó — hãy chuyển sang app bạn muốn gõ (TextEdit, Chrome, Figma…) rồi mới bấm. App sẽ báo bằng chữ cam kèm tiếng bíp khi gặp trường hợp này.
