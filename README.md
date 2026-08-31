@@ -64,16 +64,21 @@ Nút này dành cho **app bị chặn gần nhất**. Không thấy dòng nào n
 
 ### Yêu cầu để bấm được nút Vẫn mở
 
-Cách 2 chỉ đi trọn được khi máy bạn đáp ứng cả 4 điều dưới. **Thiếu bất kỳ điều nào thì dùng [Cách 1](#cách-1--dán-một-dòng)** — cách đó không chạm tới Gatekeeper nên bỏ qua được toàn bộ mục này.
+**Không phải "mở khoá" Gatekeeper.** Đây là chỗ hầu hết mọi người hiểu nhầm. Bấm *Vẫn mở* tạo ngoại lệ cho **đúng một app**; Gatekeeper vẫn bật nguyên và mọi app khác vẫn bị soi như cũ. Bạn **không** cần tắt Gatekeeper, **không** cần `sudo spctl --master-disable`, **không** cần bật lựa chọn "Anywhere" đã bị Apple giấu đi, và **không** cần `sudo` ở bất kỳ bước nào.
+
+Cũng **không cần đổi ô *Allow applications from***. AutoType ký kiểu ad-hoc (`TeamIdentifier` trống) nên nó trượt **cả hai** lựa chọn của ô đó — để *App Store* hay *App Store & Known Developers* thì kết quả vẫn y hệt, và *Vẫn mở* là đường vòng riêng nằm ngoài ô đó.
+
+Thứ bạn thực sự cần chỉ có 3 điều:
 
 | Cần | Vì sao | Không đạt thì |
 |---|---|---|
-| Ô **Allow applications from** để **App Store & Known Developers** (thấy trong hình) | AutoType không có trên App Store. Nếu ô này đang để **App Store**, macOS chỉ cho chạy app tải từ App Store | Đổi ô đó về *App Store & Known Developers* |
-| Bạn là **quản trị viên máy**, hoặc có mật khẩu quản trị | Bước 5 đòi Touch ID hoặc mật khẩu máy | Nhờ người quản trị bấm hộ |
-| Mục **Bảo mật** không bị **MDM** khoá | Máy do công ty/trường cấp thường bị khoá — mục hiện mờ, hoặc kèm dòng báo đang được quản lý | Hỏi bộ phận IT |
+| Bạn là **quản trị viên máy**, hoặc có mật khẩu quản trị | Bước 5 đòi Touch ID hoặc mật khẩu máy — chỉ cho riêng lần bấm đó | Nhờ người quản trị bấm hộ |
+| Mục **Bảo mật** không bị **MDM** khoá | Máy do công ty/trường cấp có thể bị khoá — mục hiện mờ, hoặc kèm dòng báo đang được quản lý | Hỏi bộ phận IT, hoặc dùng [Cách 1](#cách-1--dán-một-dòng) |
 | Vừa bấm đúp AutoType **ngay trước đó** | Nút chỉ hiện cho app bị chặn gần nhất | Bấm đúp AutoType lần nữa rồi mở lại Cài đặt |
 
 Từ **macOS 15 trở đi, mẹo cũ "Control-click → Open" không còn tác dụng** — bắt buộc đi qua Cài đặt hệ thống như trên.
+
+Vướng một trong ba điều trên thì dùng [Cách 1](#cách-1--dán-một-dòng): `curl` không gắn cờ kiểm dịch lên file nên macOS không chặn, và cả mục này trở thành không liên quan.
 
 
 Thao tác này chỉ tạo ngoại lệ cho **đúng một app**, không tắt Gatekeeper toàn máy. Apple mô tả cùng quy trình tại [Open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac).
@@ -248,7 +253,7 @@ curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh |
 
 *No Terminal at all*: download **[AutoType.zip](https://github.com/wblekhoa/autotype/releases/latest/download/AutoType.zip)**, unzip, drag to Applications. macOS will block it on first launch — that is expected for an app without a paid Apple Developer certificate. Go to *System Settings → Privacy & Security → Security*, click **Open Anyway**, confirm, then **Open**.
 
-That path needs *Allow applications from* set to **App Store & Known Developers**, admin rights on the Mac, and a Security pane not locked by MDM. If any of those is missing, use the one-line install above — it never touches Gatekeeper.
+This does **not** disable Gatekeeper — it is a per-app exception, and no change to *Allow applications from* is needed. It does need admin rights and a Security pane not locked by MDM. If either is missing, use the one-line install above: `curl` sets no quarantine flag, so nothing is blocked.
 
 Either way, finish by enabling **AutoType** under *System Settings → Privacy & Security → Accessibility* — macOS never lets an app grant itself keystroke permission.
 
