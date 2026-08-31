@@ -1,82 +1,95 @@
 # AutoType
 
-Giữ một phím tắt → ký tự tuôn ra liên tục vào ô bạn đang gõ. Thả tay → dừng ngay.
+**Giữ một phím tắt → ký tự tuôn ra liên tục vào ô bạn đang gõ. Thả tay → dừng ngay.**
 
-App macOS nhỏ, một file Swift, không cần Xcode project. Dùng để: test font, đổ text lấp chỗ trong Figma, stress-test ô nhập liệu, sinh dữ liệu rác có kiểm soát.
-
-> **English**: A tiny macOS utility that floods the focused text field with characters while you hold a global hotkey. One-line install (no dev tools needed):
->
-> ```bash
-> curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh | bash
-> ```
->
-> Then enable **AutoType** under System Settings → Privacy & Security → Accessibility. macOS 13+. Universal binary (Intel + Apple Silicon). Hold ⌃⌘T to type, Esc to stop.
+App macOS nhỏ, dùng để test font, đổ text lấp chỗ trong Figma, stress-test ô nhập liệu, sinh dữ liệu rác có kiểm soát.
 
 ---
 
-## Cài đặt
+# Cài đặt — 2 bước, khoảng 1 phút
 
-Dán một dòng này vào Terminal (Spotlight → gõ "Terminal"):
+## Bước 1 — dán dòng này vào Terminal
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh | bash
 ```
 
-Xong. **Không cần cài Xcode, không cần công cụ lập trình nào**, không có cảnh báo bảo mật.
+> Mở Terminal: bấm **⌘ + Space**, gõ `Terminal`, Enter. Dán lệnh, bấm Enter, chờ vài giây.
 
-Script tải bản dựng sẵn (~1 MB, chạy cả máy Intel lẫn Apple Silicon), đặt vào `~/Applications`, mở app, rồi mở sẵn đúng trang cấp quyền cho bạn.
+Không cần cài Xcode, không cần công cụ lập trình nào, không có cảnh báo bảo mật. Script tải bản dựng sẵn (~1 MB, chạy cả Intel lẫn Apple Silicon), đặt vào `~/Applications`, mở app, rồi mở sẵn đúng trang cấp quyền cho bạn.
 
-Yêu cầu: **macOS 13 trở lên**. Không có yêu cầu nào khác.
+## Bước 2 — bật quyền Trợ năng
 
-**Không mở được Terminal?** Có đường bấm đúp trong Finder — xem [INSTALL.md](INSTALL.md#cách-2--bấm-đúp-không-cần-terminal). Đường đó phải bấm qua một cảnh báo bảo mật của macOS, nên chậm hơn cách trên.
+Cửa sổ **Cài đặt hệ thống** sẽ tự mở ở đúng trang. Tìm dòng **AutoType** và **bật công tắc**:
 
-Muốn xem script làm gì trước khi chạy thì mở [`install.sh`](install.sh) — nó ngắn, đọc được.
+> **Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Trợ năng**
 
-### Bước duy nhất phải tự làm
+macOS **không cho phép** bất kỳ app nào tự cấp cho mình quyền gõ phím. Đây là rào bảo mật thật, trình cài không lách được và cũng không nên lách.
 
-macOS **không cho phép** app nào tự cấp cho mình quyền gõ phím — script không lách được, và không nên lách.
+Bật xong là dùng được ngay — **không cần mở lại app**.
 
-Trong cửa sổ Cài đặt hệ thống mà script vừa mở, **bật công tắc `AutoType`**:
+## Xong. Thử luôn
 
-**Quyền riêng tư & Bảo mật → Trợ năng**
-
-Bật xong là dùng được ngay, không cần mở lại app.
-
-### Cập nhật về sau
-
-Chạy lại đúng dòng lệnh trên. Nó thay bản cũ, giữ nguyên thiết lập của bạn.
+Mở **TextEdit**, click vào vùng soạn thảo, rồi **giữ ⌃⌘T** vài giây. Ký tự sẽ tuôn ra. **Esc** để dừng.
 
 ---
 
-## Cách khác: tự biên dịch từ mã nguồn
+## Hai chỗ hay vướng nhất
 
-Nếu bạn muốn tự build (hoặc đã sửa mã):
+**Bấm phím tắt mà không thấy gì?** Kiểm tra bạn có đang đứng ở **cửa sổ AutoType** không. App cố ý không tự gõ vào ô của chính nó — hãy chuyển sang app bạn muốn gõ (TextEdit, Chrome, Figma…) rồi mới bấm. Từ bản 2.1 app sẽ báo bằng chữ cam kèm tiếng bíp khi gặp trường hợp này.
+
+**Đã bật công tắc Trợ năng mà app vẫn báo đỏ?** Tắt rồi bật lại công tắc đó. Nếu vẫn vậy: chọn AutoType trong danh sách, bấm nút `−` để xoá, rồi mở lại app.
+
+---
+
+## Yêu cầu
+
+| | |
+|---|---|
+| macOS | 13 trở lên |
+| Máy | Intel hoặc Apple Silicon |
+| Dung lượng | ~1 MB |
+| Công cụ lập trình | **Không cần** |
+
+Không cần API key, không cần Homebrew, không dùng `sudo`, không sửa shell profile.
+
+## Không mở được Terminal?
+
+Có đường **bấm đúp trong Finder** — xem [INSTALL.md](INSTALL.md#cách-2--bấm-đúp-không-cần-terminal). Đường đó phải bấm qua một cảnh báo bảo mật của macOS nên nhiều thao tác hơn, nhưng không phải gõ lệnh nào.
+
+## Cập nhật · Gỡ cài đặt
+
+Cập nhật: chạy lại đúng lệnh ở Bước 1. Bản cũ được thay, thiết lập của bạn giữ nguyên.
+
+Gỡ:
 
 ```bash
-git clone https://github.com/wblekhoa/autotype.git && cd autotype && ./build.sh
+rm -rf ~/Applications/AutoType.app && defaults delete com.lekhoa.autotype
 ```
 
-Cách này cần **Xcode Command Line Tools** (`xcode-select --install`, khoảng 2 GB). Không cần Xcode đầy đủ.
+Rồi bỏ AutoType khỏi danh sách Trợ năng.
+
+> **Chỉ nên có ĐÚNG MỘT AutoType trên máy**, ở `~/Applications`. Mở nhầm bản ở đường dẫn khác thì macOS coi là app khác và bắt cấp quyền lại từ đầu. Kiểm tra: `mdfind -name AutoType | grep '\.app$'`
 
 ---
 
-## Dùng
+# Dùng
 
 Mở app một lần, chỉnh cho vừa ý, rồi để đó. Từ giờ chỉ cần phím tắt.
 
-### Cửa sổ và thanh menu
+## Cửa sổ và thanh menu
 
 App có **biểu tượng bàn phím trên thanh menu** — bấm vào đó để mở lại cửa sổ, bật/tắt nhanh phím tắt, hoặc thoát hẳn.
 
-**Đóng cửa sổ không tắt app.** Phím tắt vẫn chạy tiếp — đóng chỉ để dọn màn hình. Muốn tắt hẳn thì dùng menu **Thoát AutoType** trên thanh menu.
+**Đóng cửa sổ không tắt app.** Phím tắt vẫn chạy tiếp — đóng chỉ để dọn màn hình. Muốn tắt hẳn thì dùng **Thoát AutoType** trên thanh menu.
 
-Cửa sổ **kéo giãn được**, và nội dung tự cuộn nếu màn hình bạn thấp.
+Cửa sổ kéo giãn được, nội dung tự cuộn nếu màn hình bạn thấp.
 
-### Công tắc BẬT / TẮT (trên cùng)
+## Công tắc BẬT / TẮT (trên cùng)
 
 Công tắc chủ. **Tắt** = phím tắt ngừng hoạt động hoàn toàn, bàn phím trả lại nguyên vẹn cho bạn — cứ để app mở mà không sợ lỡ tay. Đang gõ dở mà tắt thì dừng luôn.
 
-### Hai cách kích hoạt
+## Hai cách kích hoạt
 
 | Chế độ | Hành vi |
 |---|---|
@@ -87,7 +100,7 @@ Phím tắt mặc định **⌃⌘T**, đổi được trong app.
 
 **Esc dừng khẩn cấp bất cứ lúc nào**, kể cả đang ở chế độ vô hạn.
 
-### Ký tự sẽ gõ
+## Ký tự sẽ gõ
 
 | Lựa chọn | Nội dung |
 |---|---|
@@ -100,13 +113,13 @@ Phím tắt mặc định **⌃⌘T**, đổi được trong app.
 **Gõ ngẫu nhiên** (mặc định): mỗi ký tự bốc ngẫu nhiên từ bộ trên — hợp để lấp chỗ, test độ rộng.
 **Bỏ chọn**: gõ đúng thứ tự, hết bộ quay lại đầu — hợp để test font, soi ký tự thiếu glyph.
 
-### Số lượng và tốc độ
+## Số lượng và tốc độ
 
 - **Số lượt** — chỉ áp dụng cho chế độ *bấm một phát*.
-- **Vô hạn** — gõ tới khi bấm Esc, và **tự dừng sau 60 giây** như phanh thứ hai. Esc là phanh chính, nhưng một số app có thể nuốt phím Esc nên cần đường dừng dự phòng. Muốn gõ tiếp thì kích hoạt lại.
+- **Vô hạn** — gõ tới khi bấm Esc, và **tự dừng sau 60 giây** như phanh thứ hai. Esc là phanh chính, nhưng một số app có thể nuốt phím Esc nên cần đường dừng dự phòng.
 - **Tốc độ** — ký tự mỗi giây, tối đa 2000.
 
-> **Đo được:** ở **200 ký tự/giây trở xuống**, ký tự tới nơi **chính xác từng cái một**. Từ khoảng 1000 trở lên, app nhận bắt đầu bỏ sót lẻ tẻ — ~0,7% ở mức 2000. Đây là giới hạn của bên nhận, không phải lỗi engine. Cần chuẩn từng ký tự thì để 200 trở xuống; cần đổ thật nhanh và không quan trọng vài ký tự thì đẩy lên cao.
+> **Đo được:** ở **200 ký tự/giây trở xuống**, ký tự tới nơi **chính xác từng cái một**. Từ khoảng 1000 trở lên, app nhận bắt đầu bỏ sót lẻ tẻ — ~0,7% ở mức 2000. Đây là giới hạn của bên nhận, không phải lỗi engine. Cần chuẩn từng ký tự thì để ≤200; cần đổ thật nhanh và không quan trọng vài ký tự thì đẩy lên cao.
 
 ---
 
@@ -117,10 +130,6 @@ Phím tắt mặc định **⌃⌘T**, đổi được trong app.
 **Bộ gõ tiếng Việt không ảnh hưởng.** App gõ theo Unicode trực tiếp nên Telex/EVKey không xen vào được.
 
 **Cẩn thận với chế độ vô hạn.** Nó bơm ký tự vào bất kỳ cửa sổ nào đang được chọn. Nhắm đúng ô trước, và nhớ Esc.
-
-**App không tự gõ vào chính nó.** Nếu cửa sổ AutoType đang được chọn, nó từ chối chạy và nhắc bạn chuyển sang app cần gõ.
-
----
 
 ## Khi không chạy
 
@@ -139,17 +148,35 @@ cat ~/Library/Logs/AutoType.log
 | `START` + `secureInput = true` | App đích bật Secure Input (ô mật khẩu…), macOS chặn mọi phím giả lập |
 | `START` + `đã gửi N ký tự` mà màn hình trống | App đích không nhận sự kiện Unicode — mở issue kèm tên app |
 
-**Build lại xong app báo thiếu quyền?** Bình thường: mỗi lần build sinh binary mới, macOS coi là app khác. Tắt rồi bật lại AutoType trong Trợ năng.
+---
+
+## Tự biên dịch từ mã nguồn
+
+Nếu bạn muốn tự build (hoặc đã sửa mã):
+
+```bash
+git clone https://github.com/wblekhoa/autotype.git && cd autotype && ./build.sh
+```
+
+Cách này cần **Xcode Command Line Tools** (`xcode-select --install`, ~2 GB). Không cần Xcode đầy đủ.
+
+Ghi chú kỹ thuật + các bẫy nền tảng đã đo được: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Gate: `./verify.sh`.
 
 ---
 
-## Gỡ cài đặt
+## English
+
+A tiny macOS utility that floods the focused text field with characters while you hold a global hotkey.
+
+**Install** — one line, no dev tools required:
 
 ```bash
-rm -rf ~/Applications/AutoType.app && defaults delete com.lekhoa.autotype
+curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh | bash
 ```
 
-Rồi bỏ AutoType khỏi danh sách Trợ năng.
+Then enable **AutoType** under *System Settings → Privacy & Security → Accessibility* — macOS never lets an app grant itself keystroke permission.
+
+Hold **⌃⌘T** in any text field to type, **Esc** to stop. macOS 13+, universal binary (Intel + Apple Silicon). MIT licensed.
 
 ---
 
