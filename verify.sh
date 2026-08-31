@@ -28,10 +28,11 @@ head_ "1. Biên dịch"
 ( cd "$SB/src" && ./package.sh >/dev/null 2>&1 ) && [ -f "$SB/src/AutoType.zip" ] \
   && ok "package.sh ra AutoType.zip ($(du -h "$SB/src/AutoType.zip" | cut -f1 | tr -d ' '))" || no "package.sh"
 
-if lipo -info "$SB/src/AutoType.app/Contents/MacOS/AutoType" 2>/dev/null | grep -q "x86_64 arm64"; then
+if lipo -info "$SB/src/AutoType.app/Contents/MacOS/AutoType" 2>/dev/null | grep -q "x86_64 arm64" \
+   || unzip -p "$SB/src/AutoType.zip" "AutoType.app/Contents/MacOS/AutoType" > "$SB/u.bin" 2>/dev/null && lipo -info "$SB/u.bin" 2>/dev/null | grep -q "x86_64 arm64"; then
   ok "universal binary (Intel + Apple Silicon)"; else no "universal binary"; fi
 
-[ -f "$SB/src/AutoType.app/Contents/Resources/AutoType.icns" ] && ok "icon trong bundle" || no "icon trong bundle"
+[ -f "$SB/Applications/AutoType.app/Contents/Resources/AutoType.icns" ] && ok "icon trong bundle đã cài" || no "icon trong bundle đã cài"
 
 head_ "2. Trình cài"
 rm -rf "$SB/Applications"

@@ -53,7 +53,11 @@ mkdir -p "$DEST"
 rm -rf "$DEST/$OUT"
 cp -R "$OUT" "$DEST/$OUT"
 
-echo "✔ Built:     $(pwd)/$OUT"
+# Dọn bản trong thư mục mã nguồn. Để lại là Spotlight index HAI AutoType trùng
+# bundle id nhưng khác đường dẫn — người dùng bấm nhầm bản kia thì macOS coi là
+# app khác và đòi cấp quyền Trợ năng lại từ đầu. Đã gây nhầm lẫn thật (2026-08-31).
+rm -rf "$OUT"
+
 echo "✔ Installed: $DEST/$OUT"
 echo
 echo "Lần đầu chạy: app tự xin quyền Trợ năng — bật AutoType rồi mở lại."

@@ -62,3 +62,6 @@ ditto -c -k --keepParent "$OUT" "$ZIP"
 echo "✔ $ZIP  ($(du -h "$ZIP" | cut -f1))"
 lipo -info "$OUT/Contents/MacOS/AutoType" | sed 's/^/  /'
 codesign -dv "$OUT" 2>&1 | grep -E "Identifier|Format" | sed 's/^/  /'
+# Sản phẩm của script này là file .zip; bản .app chỉ là trung gian. Để lại sẽ
+# thành AutoType thứ hai trong Spotlight (xem ghi chú cùng loại ở build.sh).
+rm -rf "$OUT"
