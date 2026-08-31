@@ -4,6 +4,8 @@
 
 App macOS nhỏ, dùng để test font, đổ text lấp chỗ trong Figma, stress-test ô nhập liệu, sinh dữ liệu rác có kiểm soát.
 
+App cần quyền **Trợ năng** để gõ hộ bạn. Muốn biết nó làm gì với quyền đó — và tự kiểm bằng lệnh thay vì tin lời — đọc [**App này làm gì, và không làm gì**](#app-này-làm-gì-và-không-làm-gì) trước khi cài.
+
 ---
 
 # Cài đặt — chọn 1 trong 2 cách
@@ -35,7 +37,7 @@ Xong. Nhảy xuống [Bước cuối](#bước-cuối--bật-quyền-trợ-năng
 
 ### 1. Tải app
 
-Bấm **[⬇︎ Tải AutoType.zip](https://github.com/wblekhoa/autotype/releases/latest/download/AutoType.zip)** (~1 MB).
+Bấm **[⬇︎ Tải AutoType.zip](https://github.com/wblekhoa/autotype/releases/latest/download/AutoType.zip)** (~1,2 MB).
 
 ### 2. Giải nén và kéo vào Applications
 
@@ -161,13 +163,13 @@ App **ký ad-hoc, chưa notarize** (`TeamIdentifier` trống) — vì chứng ch
 
 ---
 
-## Yêu cầu
+## Cấu hình tối thiểu
 
 | | |
 |---|---|
 | macOS | 13 trở lên |
 | Máy | Intel hoặc Apple Silicon |
-| Dung lượng | ~1 MB |
+| Dung lượng | ~1,2 MB |
 | Công cụ lập trình | **Không cần** (cả hai cách) |
 
 Không cần API key, không cần Homebrew, không dùng `sudo`, không sửa shell profile.
@@ -292,6 +294,8 @@ Ghi chú kỹ thuật + các bẫy nền tảng đã đo được: [docs/DEVELOP
 ## English
 
 A tiny macOS utility that floods the focused text field with characters while you hold a global hotkey.
+
+It needs macOS **Accessibility** permission. What it does and does not do with that permission — each claim with a command you can run yourself — is in [App này làm gì, và không làm gì](#app-này-làm-gì-và-không-làm-gì) (Vietnamese; the commands are language-neutral).
 
 **Two ways to install — pick one:**
 
