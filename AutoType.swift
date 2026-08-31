@@ -487,7 +487,9 @@ struct ContentView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 360, idealWidth: 400)
+        // Không có maxWidth thì Form nở tới bề rộng tự nhiên của nội dung dài nhất
+        // (đo được 900pt) — rộng hơn cả bản AppKit cũ mà người dùng đã kêu.
+        .frame(minWidth: 380, idealWidth: 420, maxWidth: 420)
     }
 
     private var permissionSection: some View {
