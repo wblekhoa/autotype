@@ -1,3 +1,6 @@
+current_focus: doc-truth-gate — sửa DEVELOPMENT.md khớp mã SwiftUI + gate bắt doc-drift
+(luồng này chỉ GHI; con trỏ dùng chung nên ghi tên để quy được trách nhiệm)
+
 # Chiến dịch: kiểm chứng engine gõ + đưa AutoType đạt bar phát hành
 
 Nhánh: `auto/verify-typing-engine` · tách từ `main` @ 4fa227b
@@ -58,3 +61,32 @@ Nhánh: `auto/verify-typing-engine` · tách từ `main` @ 4fa227b
   tự gõ vào ô của chính nó. Cần đo ngay sau khi user cấp quyền.
 - Phát hành release mới (binary đã đổi: mồi + UI cảnh báo tốc độ) — publish ra
   ngoài, cần user đồng ý.
+
+
+---
+
+## Luồng doc-truth-gate (2026-08-31, sau khi phát hành v2.2)
+
+Trạng thái đo được lúc bắt đầu: `main` @ `f184050` sạch, v2.2 đã phát hành,
+`verify.sh` xanh 13/13 — **nhưng** `docs/DEVELOPMENT.md` mô tả kiến trúc đã chết
+(`NSStackView`, `MainWindowController`, `NSStatusItem`, `FlippedView`; 0 lần nhắc
+SwiftUI), và §5 khẳng định "chưa có test tự động" trong khi gate đã có 13 mục.
+
+Đã làm:
+- §1 kiến trúc viết lại theo mã đang ship, tách rõ engine (bất biến, gate so hash) và
+  lớp SwiftUI ở trên.
+- §2 bổ sung `-parse-as-library` — cờ bắt buộc từ khi điểm vào là `@main struct App`.
+- §3.12 mới: ba bẫy riêng của SwiftUI (khung cửa sổ đã lưu đè `.contentSize` ·
+  `.background()` đặt view ngoài vùng cuộn · `Form` không kẹp `maxWidth` thì nở 900pt).
+- §3.8 ghi rõ là bẫy thời AppKit, giữ vì bài học còn đúng.
+- §6 thay khẳng định sai bằng ba điểm lởm chởm THẬT.
+- **`verify.sh` mục 5 mới**: mọi ký hiệu mã tài liệu nêu phải tồn tại trong mã nguồn.
+  Chạy lần đầu bắt ngay 2 chỗ tôi vừa sửa tay vẫn còn sót.
+- 2 lesson vào `ai-memory/lessons/`.
+
+Gate sau khi xong: **11 đạt · 0 hỏng**.
+
+CHƯA làm, chờ chủ quyết:
+- `Install AutoType.command` đang mồ côi (không tài liệu nào nhắc sau khi README đổi
+  đường không-Terminal sang tải bản dựng sẵn). Giữ hay bỏ là quyết định phạm vi.
+- Commit + push nhánh `auto/doc-truth-gate`.

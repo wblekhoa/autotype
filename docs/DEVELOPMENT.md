@@ -4,16 +4,26 @@ Dành cho người muốn sửa app. Phần đáng đọc nhất là §3 — nh�
 
 ## 1. Kiến trúc
 
-Toàn bộ app nằm trong `AutoType.swift` (~650 dòng), dựng UI bằng code, không storyboard, không Xcode project.
+Toàn bộ app nằm trong `AutoType.swift` (~700 dòng). UI là **SwiftUI**; điểm vào là `@main struct AutoTypeApp: App`. Không storyboard, không Xcode project.
 
-| Thành phần | Vai trò |
+Ranh giới quan trọng: **engine tách hẳn khỏi UI**. Bốn kiểu dưới đây không biết gì về SwiftUI và không được phép biết — gate so hash chúng với bản test, nên sửa chúng là gate đỏ.
+
+| Engine (không dính UI) | Vai trò |
 |---|---|
 | `Pool` | 5 bộ ký tự: chữ · số · chữ+số · toàn bàn phím (ASCII 33–126) · tự nhập |
-| `Typist.type` | Bắn `CGEvent` từng ký tự, `flags = []`, mang Unicode |
-| `Hotkey.isHeld` | `CGEventSource.keyState` (phím chính) + `NSEvent.modifierFlags` (modifier) |
+| `Typist` | `type()` bắn `CGEvent` từng ký tự (`flags = []`, mang Unicode) · `primePipeline()` đốt sự kiện hỏng đầu tiến trình |
+| `Hotkey` | `isHeld` = `CGEventSource.keyState` (phím chính) + `NSEvent.modifierFlags` (modifier) |
 | `Prefs` | `UserDefaults` suite `com.lekhoa.autotype`, khoá tiền tố `v2.` |
 | `Log` | Ghi `~/Library/Logs/AutoType.log` |
-| `MainWindowController` | 2 timer 25 Hz: một canh phím tắt, một bơm ký tự |
+
+| Lớp trên (SwiftUI / AppKit) | Vai trò |
+|---|---|
+| `Engine: ObservableObject` | Toàn bộ trạng thái chạy. 2 timer 25 Hz: canh phím tắt + bơm ký tự. **`ObservableObject` chứ không `@Observable`** — `@Observable` cần macOS 14, app khai tối thiểu 13 |
+| `ContentView` | `Form` + `.formStyle(.grouped)` — idiom Apple cho cửa sổ thiết lập |
+| `HotkeyField` | Ô ghi phím tắt, có hạn giờ 6 giây |
+| `MinimalScrollers` | `NSViewRepresentable` ép `NSScrollView.scrollerStyle = .overlay` |
+| `ScrollerBridge` · `EdgeHoverView` · `EdgeHover` | Rê chuột mép phải → `flashScrollers()` |
+| `AutoTypeApp` | `Window` + `MenuBarExtra` |
 
 **Mô hình "lượt"**: ngẫu nhiên → 1 lượt = 1 ký tự ngẫu nhiên; tuần tự → 1 lượt = 1 ký tự kế tiếp, hết bộ quay lại đầu. Chế độ giữ-để-gõ ép vô hạn, bỏ qua số lượt.
 
@@ -25,7 +35,10 @@ Toàn bộ app nằm trong `AutoType.swift` (~650 dòng), dựng UI bằng code,
 
 `swiftc` → dựng bundle thủ công → `codesign --force --sign -` (ad-hoc) → copy sang `~/Applications`.
 
-Cờ **`-swift-version 5` là bắt buộc**: Swift 6 bật strict concurrency, app một-file dùng state trên main thread sẽ đỏ hàng loạt mà không đổi được gì về hành vi.
+Hai cờ **bắt buộc**, thiếu là hỏng:
+
+- **`-swift-version 5`** — Swift 6 bật strict concurrency, app một-file dùng state trên main thread sẽ đỏ hàng loạt mà không đổi được gì về hành vi.
+- **`-parse-as-library`** — điểm vào là `@main struct App` trong file KHÔNG tên `main.swift`. Thiếu cờ này trình biên dịch coi phần thân là script và `@main` không chạy.
 
 ## 3. Bẫy nền tảng — đo được, không phải suy đoán
 
@@ -69,15 +82,15 @@ Bộ ghi phím tắt ban đầu không có hạn giờ → nằm chờ vô thờ
 
 Chữa tận gốc nếu vòng lặp phát triển quá đau: ký bằng **self-signed certificate cố định** thay vì ad-hoc `-`, để designated requirement không đổi giữa các build.
 
-## 3.8 Cửa sổ phải cuộn được, không chỉ vừa mắt lúc viết
+### 3.8 Cửa sổ phải cuộn được, không chỉ vừa mắt lúc viết
+
+> Bẫy này thuộc thời UI dựng bằng AppKit (đã thay bằng SwiftUI). Giữ lại vì **bài học vẫn đúng**, và vì SwiftUI có phiên bản riêng của cùng loại lỗi — xem §3.12.
 
 Stack ban đầu chỉ neo trên/trái/phải, **không neo đáy** — nội dung tràn xuống dưới khung và biến mất, mà cửa sổ lại cố định kích thước nên không kéo ra xem được. Người dùng chỉ thấy giao diện cụt mà không hiểu vì sao.
 
-Nay bọc trong `NSScrollView` (cần `FlippedView` để nội dung xếp từ trên xuống), neo đủ 4 cạnh, `.resizable` trong styleMask, và các nhãn xuống dòng + đường kẻ neo bề ngang theo stack thay vì đặt cứng 415pt.
-
 **Bài học: bất kỳ giao diện dựng bằng code nào cũng phải neo đủ 4 cạnh.** Thiếu neo đáy là lỗi im lặng — không cảnh báo, không crash, chỉ mất nội dung.
 
-## 3.9 Số đo từ đợt audit (2026-08-30)
+### 3.9 Số đo từ đợt audit (2026-08-30)
 
 | Nghi vấn | Đo được | Kết luận |
 |---|---|---|
@@ -87,7 +100,7 @@ Nay bọc trong `NSScrollView` (cần `FlippedView` để nội dung xếp từ 
 
 Hai nghi vấn đầu suýt được ghi vào tài liệu như lỗi thật. **Đo trước khi ghi.**
 
-## 3.11 Hai sự kiện phím ĐẦU TIÊN của mỗi tiến trình bị hỏng
+### 3.10 Hai sự kiện phím ĐẦU TIÊN của mỗi tiến trình bị hỏng
 
 Đo được, tái hiện 3/3 **qua hai tiến trình riêng biệt**: gửi `"XYZ"` nhận về `"aa"`. Hai event đầu **bỏ qua lớp Unicode** và rơi về ký tự mặc định của `virtualKey: 0` — tức phím 'A'. Từ event thứ ba trở đi mới đúng.
 
@@ -100,7 +113,7 @@ Cách đang dùng: `Typist.primePipeline()` đốt 3 event lúc **khởi động
 
 **Chưa kiểm chứng được:** mồi có thật sự không làm hỏng thiết lập khi app CÓ quyền Trợ năng. Lần đo gần nhất `quyền = false` nên nhánh mồi không chạy. Rủi ro có thật vì app từng tự gõ vào ô của chính mình (§3.4).
 
-## 3.12 Tốc độ cao thì bên NHẬN bỏ sót — đã định lượng
+### 3.11 Tốc độ cao thì bên NHẬN bỏ sót — đã định lượng
 
 | Tốc độ × độ dài | Kết quả (3 lượt mỗi mức) |
 |---|---|
@@ -110,7 +123,15 @@ Cách đang dùng: `Typist.primePipeline()` đốt 3 event lúc **khởi động
 
 Đây là **giới hạn của app nhận**, không phải engine: engine bắn được ~21.000 ký tự/giây (§3.9). Gate vì thế chỉ chặn ở hai mức đầu và in mức 2000 làm thông tin — chặn ở mức 2000 sẽ là bắt engine chịu trách nhiệm cho thứ nó không điều khiển được.
 
-## 3.10 Gate: `./verify.sh`
+### 3.12 Ba bẫy riêng của SwiftUI (đo 2026-08-31)
+
+**Khung cửa sổ đã lưu ĐÈ lên `.contentSize`.** `windowResizability(.contentSize)` cho cửa sổ tự lấy kích thước theo nội dung — nhưng macOS vẫn khôi phục `"NSWindow Frame <id>"` từ prefs. Bản trước lưu 509pt; bản sau cần 635pt khi hiện banner thiếu quyền; khung cũ thắng, cửa sổ hụt 126pt, sinh thanh cuộn và lệch hẳn một bên. **Chỉ cắn người NÂNG CẤP** — cài mới không có khung nào để khôi phục, nên đo bằng bản sạch sẽ không bao giờ thấy. `Engine.init()` xoá khoá đó; `.restorationBehavior(.disabled)` gọn hơn nhưng cần macOS 15.
+
+**`.background()` đặt view NGOÀI vùng cuộn.** `MinimalScrollers` phải leo ngược cây view tìm `NSScrollView`. Gắn bằng `.background()` lên chính `Form` thì view nằm *cạnh* vùng cuộn chứ không *trong*, leo ngược không bao giờ tới — probe im lặng hoàn toàn, không lỗi, không cảnh báo. Phải gắn vào một view **bên trong** `Form`. Cùng lý do: lúc `makeNSView` chạy, view chưa chắc đã vào cây, nên thử lại vài nhịp thay vì đoán một độ trễ.
+
+**`Form` không có `maxWidth` thì nở tới bề rộng dòng dài nhất.** Đo được 900pt — rộng gấp đôi bản AppKit cũ. Phải kẹp `maxWidth` tường minh; `.contentSize` lấy theo `maxWidth` chứ không theo `idealWidth`.
+
+## 4. Gate: `./verify.sh`
 
 Một lệnh chạy hết 12 kiểm tra, exit 0 nghĩa là đủ điều kiện phát hành. Chạy trong `HOME` cô lập nên **không đụng app đang cài trên máy bạn**.
 
@@ -131,7 +152,7 @@ Bên gõ mồi rồi phát một **chuỗi mốc** trước payload; bên nhận
 
 Chạy `./verify.sh` trước mỗi lần phát hành.
 
-## 4. Chẩn đoán
+## 5. Chẩn đoán
 
 Log ghi các mốc: `KHỞI ĐỘNG` (phím tắt · chế độ · công tắc · quyền) · `LỆCH` (bấm nhầm tổ hợp) · `START` (app đích · secureInput · pool) · `TỪ CHỐI` (lý do) · `STOP` (số ký tự đã gửi).
 
@@ -141,6 +162,8 @@ tail -f ~/Library/Logs/AutoType.log
 
 Bug "chạy ở app này, không chạy ở app kia" **không chẩn đoán được bằng mắt** — phải biết app đích là gì và khâu nào dừng. Dựng log trước, đừng suy luận từ triệu chứng.
 
-## 5. Điểm còn lởm chởm
+## 6. Điểm còn lởm chởm
 
-- Chưa có test tự động. Cách kiểm đã dùng: gõ vào một tài liệu trống rồi **so khớp từng ký tự với chuỗi kỳ vọng**, không chỉ đếm — bug rơi đuôi từng lọt qua mọi phép đếm.
+- **Rê chuột mép phải để hiện thanh cuộn chưa được kiểm tự động.** Dây nối đã chứng minh bằng probe (tracking area cài đúng, `hitTest` trả nil nên trong suốt với click, bridge giữ được `NSScrollView`), nhưng cú rê chuột THẬT thì chưa — không tự điều khiển được con trỏ. Đường duy nhất của app chỉ có mắt người kiểm được.
+- **`Install AutoType.command` đang mồ côi**: không tài liệu nào nhắc tới sau khi README chuyển đường không-Terminal sang tải bản dựng sẵn. Còn chạy được, nhưng giữ hay bỏ là quyết định phạm vi.
+- **Mỗi lần build lại là một lần cấp lại quyền Trợ năng** (§3.7). Chứng chỉ tự ký cố định sẽ chữa được cho máy người phát triển, nhưng **làm hại việc phân phối**: chứng chỉ đó không nằm trong máy người nhận nên chữ ký không xác thực được, Gatekeeper chặn nặng hơn cả ad-hoc hiện tại. Chưa đo — nếu định làm thì phải đo trước.

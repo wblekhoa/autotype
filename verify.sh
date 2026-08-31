@@ -124,6 +124,25 @@ if swiftc -O -swift-version 5 -framework AppKit -o "$SB/lg" "$SB/lg.swift" >/dev
   fi
 else no "không biên dịch được test logic"; fi
 
+head_ "5. Tài liệu có nói đúng mã không"
+# DEVELOPMENT.md từng mô tả nguyên một kiến trúc ĐÃ CHẾT (NSStackView,
+# MainWindowController, NSStatusItem) suốt nhiều commit sau khi UI chuyển sang
+# SwiftUI — không gate nào thấy, vì không gate nào đọc tài liệu. Mục này bắt
+# mọi ký hiệu mã mà tài liệu nêu trong `backtick` phải tồn tại thật.
+missing=""
+for sym in $(grep -oE '`[A-Z][A-Za-z]+(\.[a-zA-Z]+)?(\(\))?`' docs/DEVELOPMENT.md \
+             | tr -d '`()' | cut -d. -f1 | sort -u); do
+  case "$sym" in
+    NS*|CG*|AX*|UI*|Timer|Date|Bundle|Swift*|Apple*|Form|Window|MenuBarExtra|View|App|Unicode|HOME|README|LICENSE|MIT) continue ;;
+  esac
+  grep -q "$sym" AutoType.swift || missing="$missing $sym"
+done
+if [ -z "$missing" ]; then
+  ok "mọi ký hiệu mã trong DEVELOPMENT.md đều tồn tại trong AutoType.swift"
+else
+  no "DEVELOPMENT.md nhắc ký hiệu KHÔNG còn trong mã:$missing"
+fi
+
 head_ "Kết quả"
 printf '  %d đạt · %d hỏng\n\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

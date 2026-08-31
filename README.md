@@ -191,6 +191,16 @@ cat ~/Library/Logs/AutoType.log
 
 ---
 
+## Bấm đúp thay vì gõ lệnh
+
+Trong [ZIP mã nguồn](https://github.com/wblekhoa/autotype/archive/refs/heads/main.zip) có sẵn **`Install AutoType.command`** — bấm đúp là chạy, không phải gõ gì.
+
+Nó làm đúng những việc mà lệnh ở Cách 1 làm: **tải bản dựng sẵn** rồi đặt vào `~/Applications`; chỉ tự biên dịch nếu không tải được (lúc đó mới cần Xcode Command Line Tools).
+
+Vì file này tải qua trình duyệt nên macOS chặn ở lần mở đầu, giống Cách 2 — làm theo [6 bước "Vẫn mở"](#3-lần-đầu-mở--macos-sẽ-chặn-đây-là-bình-thường) ở trên.
+
+Nếu bạn mở được Terminal thì Cách 1 nhanh hơn và không có cảnh báo nào.
+
 ## Tự biên dịch từ mã nguồn
 
 Nếu bạn muốn tự build (hoặc đã sửa mã):
