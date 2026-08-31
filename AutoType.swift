@@ -265,6 +265,15 @@ final class Engine: ObservableObject {
     private let maxRunSeconds = 60.0
 
     init() {
+        // Xoá khung cửa sổ đã lưu. Cửa sổ này lấy kích thước HOÀN TOÀN theo nội
+        // dung (.contentSize), nên một khung cũ chỉ có hại: bản trước lưu 509pt,
+        // bản mới cần 635pt khi hiện banner thiếu quyền — khung cũ thắng, cửa sổ
+        // hụt 126pt, macOS sinh thanh cuộn và hai bên lệch hẳn. Người dùng nâng
+        // cấp từ bản cũ dính lỗi này còn người cài mới thì không, rất khó lần ra.
+        // .restorationBehavior(.disabled) sẽ gọn hơn nhưng cần macOS 15, mà app
+        // này khai tối thiểu macOS 13.
+        UserDefaults.standard.removeObject(forKey: "NSWindow Frame main")
+
         armed = Prefs.armed
         pool = Prefs.pool
         customText = Prefs.customText
