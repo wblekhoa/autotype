@@ -24,7 +24,7 @@ curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh |
 
 Xong. **Không cần cài Xcode, không cần công cụ lập trình nào**, không có cảnh báo bảo mật.
 
-Script tải bản dựng sẵn (92 KB, chạy cả máy Intel lẫn Apple Silicon), đặt vào `~/Applications`, mở app, rồi mở sẵn đúng trang cấp quyền cho bạn.
+Script tải bản dựng sẵn (~1 MB, chạy cả máy Intel lẫn Apple Silicon), đặt vào `~/Applications`, mở app, rồi mở sẵn đúng trang cấp quyền cho bạn.
 
 Yêu cầu: **macOS 13 trở lên**. Không có yêu cầu nào khác.
 

@@ -86,7 +86,7 @@ fi
 say ""
 say "  \033[1mSẽ làm những việc sau:\033[0m"
 case "$source_kind" in
-  prebuilt)   say "    · Tải AutoType (khoảng 92 KB) từ GitHub Releases" ;;
+  prebuilt)   say "    · Tải AutoType (khoảng 1 MB) từ GitHub Releases" ;;
   build)      say "    · Tải mã nguồn rồi biên dịch ngay trên máy bạn" ;;
   need-tools) say "    · Bật trình cài Xcode Command Line Tools của Apple" ;;
 esac
