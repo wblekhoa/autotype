@@ -427,6 +427,50 @@ final class Engine: ObservableObject {
 // Dùng control chuẩn cũng là cách thừa hưởng ngôn ngữ thiết kế hiện hành của
 // macOS — kể cả Liquid Glass trên macOS 26 — mà không tự vẽ lại gì.
 
+/// Ép thanh cuộn của Form sang kiểu PHỦ (overlay): thumb mảnh, không có nền
+/// track, và tự ẩn khi không cuộn — đúng ba thứ người dùng yêu cầu.
+///
+/// SwiftUI chỉ cho bật/tắt chỉ báo cuộn (`.scrollIndicators`), không cho chỉnh
+/// hình dáng. Muốn đổi phải với xuống NSScrollView bên dưới, nên view này chỉ
+/// làm một việc: leo ngược cây view tìm scroll view chứa nó rồi đặt kiểu.
+///
+/// Lưu ý: việc này CỐ Ý ghi đè thiết lập "Hiện thanh cuộn" của hệ thống. Bình
+/// thường không nên, nhưng đây là cửa sổ tiện ích nhỏ và chủ app yêu cầu rõ.
+struct MinimalScrollers: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView(frame: .zero)
+        retry(from: v, left: 10)
+        return v
+    }
+
+    /// Lúc makeNSView chạy, view chưa chắc đã gắn vào cây nên chưa có
+    /// NSScrollView tổ tiên. Thử lại vài nhịp thay vì đoán một độ trễ.
+    private func retry(from v: NSView, left: Int) {
+        DispatchQueue.main.async {
+            if apply(from: v) || left <= 0 { return }
+            retry(from: v, left: left - 1)
+        }
+    }
+    func updateNSView(_ v: NSView, context: Context) {
+        DispatchQueue.main.async { apply(from: v) }
+    }
+    @discardableResult
+    private func apply(from view: NSView) -> Bool {
+        var node: NSView? = view
+        while let cur = node {
+            if let sv = cur as? NSScrollView {
+                sv.scrollerStyle = .overlay          // thumb mảnh, không nền track, tự ẩn
+                sv.autohidesScrollers = true
+                sv.scrollerInsets = .init(top: 0, left: 0, bottom: 0, right: 2)
+                sv.verticalScroller?.controlSize = .small
+                return true
+            }
+            node = cur.superview
+        }
+        return false
+    }
+}
+
 struct ContentView: View {
     @ObservedObject var engine: Engine
 
@@ -493,6 +537,10 @@ struct ContentView: View {
                 Text(engine.status)
                     .font(.callout)
                     .foregroundStyle(engine.running ? Color.accentColor : .secondary)
+                    // Phải nằm BÊN TRONG Form: gắn ở ngoài thì view nằm cạnh vùng
+                    // cuộn chứ không nằm trong, leo ngược không bao giờ tới
+                    // NSScrollView (đã thử, probe im lặng).
+                    .background(MinimalScrollers().frame(width: 0, height: 0))
             }
         }
         .formStyle(.grouped)
