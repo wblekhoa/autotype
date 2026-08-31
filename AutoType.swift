@@ -427,6 +427,53 @@ final class Engine: ObservableObject {
 // Dùng control chuẩn cũng là cách thừa hưởng ngôn ngữ thiết kế hiện hành của
 // macOS — kể cả Liquid Glass trên macOS 26 — mà không tự vẽ lại gì.
 
+/// Giữ tham chiếu tới NSScrollView của Form để vùng hover mép phải gọi được.
+/// Dùng `flashScrollers()` — cơ chế sẵn có của macOS để hiện thanh cuộn phủ —
+/// thay vì tự vẽ, nên hình dáng và thời gian mờ dần vẫn do hệ thống quyết định.
+final class ScrollerBridge {
+    static let shared = ScrollerBridge()
+    weak var scrollView: NSScrollView?
+    private var repeater: Timer?
+
+    /// flashScrollers() chỉ hiện một nhịp rồi mờ đi, nên muốn "hiện suốt lúc rê
+    /// chuột ở mép" thì phải nháy lại đều đặn cho tới khi con trỏ rời đi.
+    func hovering(_ on: Bool) {
+        repeater?.invalidate(); repeater = nil
+        guard on, let sv = scrollView else { return }
+        sv.flashScrollers()
+        repeater = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let sv = self?.scrollView else { return }
+            sv.flashScrollers()
+        }
+    }
+}
+
+/// Dải mỏng dọc mép phải, chỉ để bắt con trỏ ra/vào.
+///
+/// `hitTest` trả nil nên dải này TRONG SUỐT với click — không chắn mất các
+/// control nằm dưới. Tracking area vẫn báo ra/vào bình thường vì nó hoạt động
+/// độc lập với hit-testing.
+final class EdgeHoverView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for a in trackingAreas { removeTrackingArea(a) }
+        addTrackingArea(NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self))
+    }
+
+    override func mouseEntered(with event: NSEvent) { ScrollerBridge.shared.hovering(true) }
+    override func mouseExited(with event: NSEvent)  { ScrollerBridge.shared.hovering(false) }
+}
+
+struct EdgeHover: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { EdgeHoverView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
 /// Ép thanh cuộn của Form sang kiểu PHỦ (overlay): thumb mảnh, không có nền
 /// track, và tự ẩn khi không cuộn — đúng ba thứ người dùng yêu cầu.
 ///
@@ -463,6 +510,7 @@ struct MinimalScrollers: NSViewRepresentable {
                 sv.autohidesScrollers = true
                 sv.scrollerInsets = .init(top: 0, left: 0, bottom: 0, right: 2)
                 sv.verticalScroller?.controlSize = .small
+                ScrollerBridge.shared.scrollView = sv
                 return true
             }
             node = cur.superview
@@ -544,6 +592,8 @@ struct ContentView: View {
             }
         }
         .formStyle(.grouped)
+        // Rê chuột vào dải mép phải → thanh cuộn hiện ra.
+        .overlay(alignment: .trailing) { EdgeHover().frame(width: 28) }
         // Bề ngang: không kẹp maxWidth thì Form nở tới bề rộng tự nhiên của dòng dài
         // nhất — đo được 900pt, rộng hơn cả bản AppKit cũ mà người dùng đã kêu.
         //
