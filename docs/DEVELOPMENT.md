@@ -115,8 +115,11 @@ Cách đang dùng: `Typist.primePipeline()` đốt 3 event lúc **khởi động
 Một lệnh chạy hết 12 kiểm tra, exit 0 nghĩa là đủ điều kiện phát hành. Chạy trong `HOME` cô lập nên **không đụng app đang cài trên máy bạn**.
 
 ```bash
-./verify.sh
+./verify.sh          # mặc định: bỏ qua phần đo engine
+./verify.sh --full   # có đo engine — CHỈ chạy khi không dùng máy
 ```
+
+**Phần đo engine chiếm foreground**: nó mở cửa sổ và cướp focus, nên chạy khi người dùng đang làm việc là rất phiền, và cũng cho kết quả sai (bên nhận không giành được focus → nhận 0 ký tự, trông như engine hỏng). Vì thế mặc định bỏ qua. Đừng chạy `--full` lặp đi lặp lại.
 
 Phủ: `build.sh` · `package.sh` · universal binary · icon trong bundle · cài từ bản dựng sẵn · `--check` mã 0 · `--check` mã 2 (máy thiếu công cụ) · nhánh dự phòng tự biên dịch · hash Typist · hash Pool · 17 assertion logic · gõ thật ở 50 và 200 ký tự/giây (chặn) + 2000 (thông tin).
 

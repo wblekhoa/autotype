@@ -10,6 +10,12 @@ ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; pass=$((pass+1)); }
 no()   { printf '  \033[31m✗\033[0m %s\n' "$*"; fail=$((fail+1)); }
 head_() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 
+# Phần đo engine mở cửa sổ và CƯỚP FOCUS của người đang dùng máy — rất phiền
+# nếu chạy thường xuyên. Mặc định BỎ QUA; chỉ chạy khi được yêu cầu rõ ràng:
+#   ./verify.sh --full
+FULL=0
+[ "${1:-}" = "--full" ] && FULL=1
+
 SB="$(mktemp -d)"; trap 'rm -rf "$SB"' EXIT
 mkdir -p "$SB/stub"; printf '#!/bin/bash\ntrue\n' > "$SB/stub/open"; chmod +x "$SB/stub/open"
 
@@ -49,6 +55,7 @@ rm -rf "$SB/Applications"
 env HOME="$SB" PATH="$SB/stub:$PATH" bash "$SB/nt.sh" >/dev/null 2>&1
 [ -x "$SB/Applications/AutoType.app/Contents/MacOS/AutoType" ] && ok "nhánh dự phòng: tự biên dịch từ nguồn" || no "nhánh dự phòng"
 
+if [ "$FULL" -eq 1 ]; then
 head_ "3. Engine gõ (hai tiến trình riêng — đúng như thực tế)"
 ./tools/make-harness.sh "$SB/hz" >/dev/null 2>&1
 ha=$(awk '/^enum Typist \{/{f=1} f{print} f&&/^\}/{exit}' AutoType.swift | shasum -a 256 | cut -d' ' -f1)
@@ -96,6 +103,10 @@ if swiftc -O -swift-version 5 -framework AppKit -o "$SB/hz/recv" "$SB/hz/recv.sw
          "$2" "$1" "$(( $1 - $2 ))" "$(echo "scale=1; ($1-$2)*100/$1" | bc)" ;;
   esac
 else no "không biên dịch được harness"; fi
+else
+  printf '\n\033[1m3. Engine gõ\033[0m\n'
+  printf '  \033[90m—\033[0m bỏ qua (phép đo này chiếm foreground). Chạy ./verify.sh --full khi rảnh máy.\n'
+fi
 
 head_ "4. Logic thuần (Pool + Hotkey)"
 ./tools/make-logic-test.sh "$SB/lg.swift" >/dev/null 2>&1
