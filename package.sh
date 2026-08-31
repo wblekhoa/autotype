@@ -8,7 +8,7 @@ SRC="AutoType.swift"
 OUT="AutoType.app"
 ZIP="AutoType.zip"
 BUNDLE_ID="com.lekhoa.autotype"
-VERSION="2.1"
+VERSION="2.2"
 MIN_OS="13.0"
 
 echo "▶ Biên dịch universal (arm64 + x86_64) …"

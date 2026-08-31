@@ -6,37 +6,82 @@ App macOS nhỏ, dùng để test font, đổ text lấp chỗ trong Figma, stre
 
 ---
 
-# Cài đặt — 2 bước, khoảng 1 phút
+# Cài đặt — chọn 1 trong 2 cách
 
-## Bước 1 — dán dòng này vào Terminal
+| | Cách 1 · Dán một dòng | Cách 2 · Không cần Terminal |
+|---|---|---|
+| Phải mở Terminal | Có (chỉ dán, không cần biết gì) | **Không** |
+| Cảnh báo bảo mật của macOS | **Không có** | Có — phải bấm "Vẫn mở" một lần |
+| Thời gian | ~30 giây | ~2 phút |
+
+Khác nhau vì `curl` không gắn cờ kiểm dịch lên file, còn trình duyệt thì có — nên file tải bằng trình duyệt luôn bị macOS chặn ở lần mở đầu.
+
+---
+
+## Cách 1 · Dán một dòng
+
+Mở **Terminal** (bấm ⌘ + Space, gõ `Terminal`, Enter), dán dòng này rồi Enter:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh | bash
 ```
 
-> Mở Terminal: bấm **⌘ + Space**, gõ `Terminal`, Enter. Dán lệnh, bấm Enter, chờ vài giây.
+Xong. Nhảy xuống [Bước cuối](#bước-cuối--bật-quyền-trợ-năng).
 
-Không cần cài Xcode, không cần công cụ lập trình nào, không có cảnh báo bảo mật. Script tải bản dựng sẵn (~1 MB, chạy cả Intel lẫn Apple Silicon), đặt vào `~/Applications`, mở app, rồi mở sẵn đúng trang cấp quyền cho bạn.
+---
 
-## Bước 2 — bật quyền Trợ năng
+## Cách 2 · Không cần Terminal
 
-Cửa sổ **Cài đặt hệ thống** sẽ tự mở ở đúng trang. Tìm dòng **AutoType** và **bật công tắc**:
+### 1. Tải app
 
-> **Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Trợ năng**
+Bấm **[⬇︎ Tải AutoType.zip](https://github.com/wblekhoa/autotype/releases/latest/download/AutoType.zip)** (~1 MB).
 
-macOS **không cho phép** bất kỳ app nào tự cấp cho mình quyền gõ phím. Đây là rào bảo mật thật, trình cài không lách được và cũng không nên lách.
+### 2. Giải nén và kéo vào Applications
 
-Bật xong là dùng được ngay — **không cần mở lại app**.
+Mở file ZIP vừa tải → được **AutoType**. Kéo nó vào thư mục **Applications**.
 
-## Xong. Thử luôn
+### 3. Lần đầu mở — macOS sẽ chặn, đây là bình thường
 
-Mở **TextEdit**, click vào vùng soạn thảo, rồi **giữ ⌃⌘T** vài giây. Ký tự sẽ tuôn ra. **Esc** để dừng.
+Bấm đúp AutoType. macOS hiện thông báo đại ý *"Apple không kiểm tra được app này có mã độc hay không"*.
+
+**Đây không phải app bị lỗi.** App chưa mua chứng chỉ Apple Developer (99 USD/năm) nên macOS chặn mặc định mọi app kiểu này.
+
+Làm theo đúng thứ tự:
+
+1. Bấm **Done** (hoặc **Cancel**). **Đừng bấm Move to Trash.**
+2. Mở **Cài đặt hệ thống** → **Quyền riêng tư & Bảo mật**.
+3. Kéo xuống mục **Bảo mật**, tìm dòng báo `AutoType` bị chặn.
+4. Bấm **Vẫn mở** (Open Anyway).
+5. Xác nhận bằng Touch ID hoặc mật khẩu máy.
+6. Cảnh báo hiện lại lần nữa → bấm **Mở** (Open).
+
+Nút **Vẫn mở** thường chỉ xuất hiện trong khoảng một giờ sau khi bị chặn. Chưa thấy thì bấm đúp AutoType thêm lần nữa rồi quay lại.
+
+Thao tác này chỉ tạo ngoại lệ cho **đúng một app**, không tắt Gatekeeper toàn máy. Apple mô tả cùng quy trình tại [Open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac).
+
+Lỡ bấm **Move to Trash**? Khôi phục từ Thùng rác, hoặc tải lại rồi làm lại.
+
+---
+
+## Bước cuối — bật quyền Trợ năng
+
+**Cả hai cách đều cần bước này.** macOS không cho bất kỳ app nào tự cấp cho mình quyền gõ phím — đây là rào bảo mật thật, không lách được và cũng không nên lách.
+
+Mở AutoType → nó chỉ thẳng chỗ cần bật. Hoặc tự vào:
+
+> **Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Trợ năng** → bật **AutoType**
+
+Bật xong dùng được ngay, **không cần mở lại app**.
+
+### Thử luôn
+
+Mở **TextEdit**, click vào vùng soạn thảo, **giữ ⌃⌘T** vài giây. Ký tự sẽ tuôn ra. **Esc** để dừng.
 
 ---
 
 ## Hai chỗ hay vướng nhất
 
-**Bấm phím tắt mà không thấy gì?** Kiểm tra bạn có đang đứng ở **cửa sổ AutoType** không. App cố ý không tự gõ vào ô của chính nó — hãy chuyển sang app bạn muốn gõ (TextEdit, Chrome, Figma…) rồi mới bấm. Từ bản 2.1 app sẽ báo bằng chữ cam kèm tiếng bíp khi gặp trường hợp này.
+**Bấm phím tắt mà không thấy gì?** Kiểm tra bạn có đang đứng ở **cửa sổ AutoType** không. App cố ý không tự gõ vào ô của chính nó — hãy chuyển sang app bạn muốn gõ (TextEdit, Chrome, Figma…) rồi mới bấm. App sẽ báo bằng chữ cam kèm tiếng bíp khi gặp trường hợp này.
 
 **Đã bật công tắc Trợ năng mà app vẫn báo đỏ?** Tắt rồi bật lại công tắc đó. Nếu vẫn vậy: chọn AutoType trong danh sách, bấm nút `−` để xoá, rồi mở lại app.
 
@@ -49,17 +94,13 @@ Mở **TextEdit**, click vào vùng soạn thảo, rồi **giữ ⌃⌘T** vài 
 | macOS | 13 trở lên |
 | Máy | Intel hoặc Apple Silicon |
 | Dung lượng | ~1 MB |
-| Công cụ lập trình | **Không cần** |
+| Công cụ lập trình | **Không cần** (cả hai cách) |
 
 Không cần API key, không cần Homebrew, không dùng `sudo`, không sửa shell profile.
 
-## Không mở được Terminal?
-
-Có đường **bấm đúp trong Finder** — xem [INSTALL.md](INSTALL.md#cách-2--bấm-đúp-không-cần-terminal). Đường đó phải bấm qua một cảnh báo bảo mật của macOS nên nhiều thao tác hơn, nhưng không phải gõ lệnh nào.
-
 ## Cập nhật · Gỡ cài đặt
 
-Cập nhật: chạy lại đúng lệnh ở Bước 1. Bản cũ được thay, thiết lập của bạn giữ nguyên.
+Cập nhật: chạy lại lệnh ở Cách 1, hoặc tải lại ZIP và kéo đè.
 
 Gỡ:
 
@@ -69,7 +110,7 @@ rm -rf ~/Applications/AutoType.app && defaults delete com.lekhoa.autotype
 
 Rồi bỏ AutoType khỏi danh sách Trợ năng.
 
-> **Chỉ nên có ĐÚNG MỘT AutoType trên máy**, ở `~/Applications`. Mở nhầm bản ở đường dẫn khác thì macOS coi là app khác và bắt cấp quyền lại từ đầu. Kiểm tra: `mdfind -name AutoType | grep '\.app$'`
+> **Chỉ nên có ĐÚNG MỘT AutoType trên máy.** Mở nhầm bản ở đường dẫn khác thì macOS coi là app khác và bắt cấp quyền lại từ đầu. Kiểm tra: `mdfind -name AutoType | grep '\.app$'`
 
 ---
 
@@ -168,16 +209,19 @@ Ghi chú kỹ thuật + các bẫy nền tảng đã đo được: [docs/DEVELOP
 
 A tiny macOS utility that floods the focused text field with characters while you hold a global hotkey.
 
-**Install** — one line, no dev tools required:
+**Two ways to install — pick one:**
+
+*Fastest, no security warning* (one line in Terminal):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh | bash
 ```
 
-Then enable **AutoType** under *System Settings → Privacy & Security → Accessibility* — macOS never lets an app grant itself keystroke permission.
+*No Terminal at all*: download **[AutoType.zip](https://github.com/wblekhoa/autotype/releases/latest/download/AutoType.zip)**, unzip, drag to Applications. macOS will block it on first launch — that is expected for an app without a paid Apple Developer certificate. Go to *System Settings → Privacy & Security → Security*, click **Open Anyway**, confirm, then **Open**.
+
+Either way, finish by enabling **AutoType** under *System Settings → Privacy & Security → Accessibility* — macOS never lets an app grant itself keystroke permission.
 
 Hold **⌃⌘T** in any text field to type, **Esc** to stop. macOS 13+, universal binary (Intel + Apple Silicon). MIT licensed.
-
 ---
 
 ## Giấy phép
