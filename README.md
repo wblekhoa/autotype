@@ -13,6 +13,7 @@ App macOS nhỏ, dùng để test font, đổ text lấp chỗ trong Figma, stre
 | Phải mở Terminal | Có (chỉ dán, không cần biết gì) | **Không** |
 | Cảnh báo bảo mật của macOS | **Không có** | Có — phải bấm "Vẫn mở" một lần |
 | Thời gian | ~30 giây | ~2 phút |
+| Máy cần đáp ứng thêm | Không | Phải bấm được nút **Vẫn mở** — [xem yêu cầu](#yêu-cầu-để-bấm-được-nút-vẫn-mở) |
 
 Khác nhau vì `curl` không gắn cờ kiểm dịch lên file, còn trình duyệt thì có — nên file tải bằng trình duyệt luôn bị macOS chặn ở lần mở đầu.
 
@@ -55,7 +56,25 @@ Làm theo đúng thứ tự:
 5. Xác nhận bằng Touch ID hoặc mật khẩu máy.
 6. Cảnh báo hiện lại lần nữa → bấm **Mở** (Open).
 
-Nút **Vẫn mở** thường chỉ xuất hiện trong khoảng một giờ sau khi bị chặn. Chưa thấy thì bấm đúp AutoType thêm lần nữa rồi quay lại.
+Bước 3 và 4 trông đúng như hình dưới — dòng báo nằm trong mục **Security**, nút **Open Anyway** ở mép phải cùng hàng:
+
+![Cài đặt hệ thống → Privacy & Security. Trong mục Security có dòng "AutoType" was blocked to protect your Mac, nút Open Anyway nằm bên phải cùng hàng (mũi tên vàng chỉ vào)](docs/images/open-anyway.png)
+
+Nút này dành cho **app bị chặn gần nhất**. Không thấy dòng nào nhắc tới AutoType → bấm đúp AutoType thêm một lần rồi quay lại đây.
+
+### Yêu cầu để bấm được nút Vẫn mở
+
+Cách 2 chỉ đi trọn được khi máy bạn đáp ứng cả 4 điều dưới. **Thiếu bất kỳ điều nào thì dùng [Cách 1](#cách-1--dán-một-dòng)** — cách đó không chạm tới Gatekeeper nên bỏ qua được toàn bộ mục này.
+
+| Cần | Vì sao | Không đạt thì |
+|---|---|---|
+| Ô **Allow applications from** để **App Store & Known Developers** (thấy trong hình) | AutoType không có trên App Store. Nếu ô này đang để **App Store**, macOS chỉ cho chạy app tải từ App Store | Đổi ô đó về *App Store & Known Developers* |
+| Bạn là **quản trị viên máy**, hoặc có mật khẩu quản trị | Bước 5 đòi Touch ID hoặc mật khẩu máy | Nhờ người quản trị bấm hộ |
+| Mục **Bảo mật** không bị **MDM** khoá | Máy do công ty/trường cấp thường bị khoá — mục hiện mờ, hoặc kèm dòng báo đang được quản lý | Hỏi bộ phận IT |
+| Vừa bấm đúp AutoType **ngay trước đó** | Nút chỉ hiện cho app bị chặn gần nhất | Bấm đúp AutoType lần nữa rồi mở lại Cài đặt |
+
+Từ **macOS 15 trở đi, mẹo cũ "Control-click → Open" không còn tác dụng** — bắt buộc đi qua Cài đặt hệ thống như trên.
+
 
 Thao tác này chỉ tạo ngoại lệ cho **đúng một app**, không tắt Gatekeeper toàn máy. Apple mô tả cùng quy trình tại [Open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac).
 
@@ -228,6 +247,8 @@ curl -fsSL https://raw.githubusercontent.com/wblekhoa/autotype/main/install.sh |
 ```
 
 *No Terminal at all*: download **[AutoType.zip](https://github.com/wblekhoa/autotype/releases/latest/download/AutoType.zip)**, unzip, drag to Applications. macOS will block it on first launch — that is expected for an app without a paid Apple Developer certificate. Go to *System Settings → Privacy & Security → Security*, click **Open Anyway**, confirm, then **Open**.
+
+That path needs *Allow applications from* set to **App Store & Known Developers**, admin rights on the Mac, and a Security pane not locked by MDM. If any of those is missing, use the one-line install above — it never touches Gatekeeper.
 
 Either way, finish by enabling **AutoType** under *System Settings → Privacy & Security → Accessibility* — macOS never lets an app grant itself keystroke permission.
 

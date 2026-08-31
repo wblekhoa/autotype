@@ -143,6 +143,34 @@ else
   no "DEVELOPMENT.md nhắc ký hiệu KHÔNG còn trong mã:$missing"
 fi
 
+# README giờ có hình minh hoạ + neo nội bộ. Cả hai hỏng ÂM THẦM: ảnh mất thành
+# ô vỡ, neo sai thành cú nhảy không đi đâu — không lệnh build nào thấy.
+missing_img=""
+for img in $(grep -oE '!\[[^]]*\]\([^)]+\)' README.md | sed -E 's/.*\((.*)\)/\1/' | grep -v '^http'); do
+  [ -f "$img" ] || missing_img="$missing_img $img"
+done
+if [ -z "$missing_img" ]; then
+  ok "mọi ảnh README trỏ tới đều có thật"
+else
+  no "README trỏ tới ảnh KHÔNG tồn tại:$missing_img"
+fi
+
+if python3 - <<'PYEOF'
+import io,re,sys
+s=io.open('README.md',encoding='utf-8').read()
+def slug(t):
+    t=re.sub(r'[`*_]','',t.strip().lower())
+    return ''.join(c for c in t if c.isalnum() or c in ' -').replace(' ','-')
+heads={slug(m.group(1)) for m in re.finditer(r'^#{1,6}\s+(.*)$',s,re.M)}
+bad=[a for a in (m.group(1) for m in re.finditer(r'\]\(#([^)]+)\)',s)) if a not in heads]
+
+if bad: print(' '.join(bad))
+sys.exit(1 if bad else 0)
+PYEOF
+then ok "mọi neo nội bộ trong README đều trỏ tới heading có thật"
+else no "README có neo trỏ vào heading không tồn tại (xem trên)"
+fi
+
 head_ "Kết quả"
 printf '  %d đạt · %d hỏng\n\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
