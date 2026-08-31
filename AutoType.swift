@@ -11,6 +11,7 @@
 //    bị bộ gõ tiếng Việt (Telex/VNI) biến dạng.
 
 import AppKit
+import SwiftUI
 import CoreGraphics
 import Carbon.HIToolbox   // IsSecureEventInputEnabled — biết được app đích có chặn phím giả lập không
 
@@ -222,363 +223,89 @@ struct Prefs {
     }
 }
 
-/// Gốc toạ độ ở góc trên-trái. Không có lớp này thì nội dung trong NSScrollView
-/// xếp ngược từ dưới lên.
-final class FlippedView: NSView { override var isFlipped: Bool { true } }
+// ════════════════════════ Bộ điều khiển ════════════════════════
+//
+// Toàn bộ trạng thái chạy sống ở đây; SwiftUI chỉ vẽ lại theo nó.
+// ObservableObject chứ không phải @Observable: @Observable cần macOS 14,
+// còn app này khai tối thiểu macOS 13.
 
-// ============================ Cửa sổ chính ============================
+final class Engine: ObservableObject {
 
-final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegate {
+    // ── thiết lập (ghi thẳng xuống UserDefaults khi đổi) ──
+    @Published var armed: Bool          { didSet { Prefs.armed = armed; if !armed, running { stop("Đã tắt — dừng giữa chừng.") } } }
+    @Published var pool: Pool           { didSet { Prefs.pool = pool } }
+    @Published var customText: String   { didSet { Prefs.customText = customText } }
+    @Published var randomOrder: Bool    { didSet { Prefs.randomOrder = randomOrder } }
+    @Published var holdMode: Bool       { didSet { Prefs.holdMode = holdMode } }
+    @Published var count: Int           { didSet { Prefs.count = max(1, count) } }
+    @Published var infinite: Bool       { didSet { Prefs.infinite = infinite } }
+    @Published var charsPerSecond: Int  { didSet { Prefs.charsPerSecond = min(2000, max(1, charsPerSecond)) } }
+    @Published var hotkey: Hotkey       { didSet { Prefs.hotkey = hotkey } }
 
-    private var window: NSWindow!
-    private var poolPopup: NSPopUpButton!
-    private var customField: NSTextField!
-    private var randomCheck: NSButton!
-    private var countField: NSTextField!
-    private var infiniteCheck: NSButton!
-    private var speedField: NSTextField!
-    private var holdRadio: NSButton!
-    private var pressRadio: NSButton!
-    private var hotkeyButton: NSButton!
-    private var statusLabel: NSTextField!
-    private var permWarning: NSTextField!
-    private var statusItem: NSStatusItem?
-    private var armMenuItem: NSMenuItem!
-    private var armSwitch: NSSwitch!
-    private var armLabel: NSTextField!
+    // ── trạng thái hiển thị ──
+    @Published private(set) var running = false
+    @Published private(set) var trusted = AXIsProcessTrusted()
+    @Published private(set) var status = ""
+    @Published private(set) var alert: String?     // lời từ chối cần đập vào mắt
+    @Published var recording = false
 
-    private var hotkey = Prefs.hotkey
-    private var recording = false
-    private var recordMonitor: Any?
-    private var recordTimeout: Timer?
-
-    // Vòng theo dõi phím tắt + vòng bơm ký tự
+    // ── nội bộ ──
     private var watchTimer: Timer?
     private var emitTimer: Timer?
+    private var alertTimer: Timer?
     private var wasHeld = false
     private var permTick = 0
     private var lastMismatchTick = -999
-    private var shoutTimer: Timer?
-    private var permButton: NSButton!
-    private var running = false
-    private var remaining = 0          // số lượt còn lại; -1 = vô hạn
+    private var remaining = 0
     private var seqIndex = 0
     private var chars: [Character] = []
     private var typedThisRun = 0
-
+    private var runStartedAt = Date()
     private let tickHz = 25.0
-    /// Phanh thứ hai cho chế độ vô hạn. Esc là phanh thứ nhất, nhưng app đích có
-    /// thể nuốt Esc — một thứ bơm 2000 ký tự/giây không nên chỉ có một đường dừng.
     private let maxRunSeconds = 60.0
-    private var runStartedAt = Date.distantPast
 
-    // ---- dựng UI ----
+    init() {
+        armed = Prefs.armed
+        pool = Prefs.pool
+        customText = Prefs.customText
+        randomOrder = Prefs.randomOrder
+        holdMode = Prefs.holdMode
+        count = Prefs.count
+        infinite = Prefs.infinite
+        charsPerSecond = Prefs.charsPerSecond
+        hotkey = Prefs.hotkey
 
-    func show() {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 600),
-                         styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                         backing: .buffered, defer: false)
-        w.title = "AutoType"
-        w.delegate = self
-        w.isReleasedWhenClosed = false
-        w.center()
-        window = w
+        // Đốt 2–3 sự kiện đầu bị hỏng ngay lúc khởi động, khi rác còn rơi vào cửa
+        // sổ của chính mình chứ không phải ô văn bản người dùng đang làm việc.
+        if trusted { Typist.primePipeline() }
 
-        let stack = NSStackView()
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 10
-        stack.edgeInsets = NSEdgeInsets(top: 18, left: 20, bottom: 18, right: 20)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        permWarning = Self.label("", size: 11)
-        permWarning.textColor = .systemRed
-        permWarning.isHidden = true
-        stack.addArrangedSubview(permWarning)
-
-        permButton = NSButton(title: "Mở mục Trợ năng", target: self, action: #selector(openAccessibilityPane))
-        permButton.bezelStyle = .rounded
-        permButton.isHidden = true
-        stack.addArrangedSubview(permButton)
-
-        // Công tắc chủ, đặt trên cùng: tắt là phím tắt thôi rình bàn phím.
-        let armRow = NSStackView()
-        armRow.orientation = .horizontal
-        armRow.spacing = 10
-        armSwitch = NSSwitch()
-        armSwitch.state = Prefs.armed ? .on : .off
-        armSwitch.target = self
-        armSwitch.action = #selector(armChanged)
-        armLabel = Self.header("")
-        armRow.addArrangedSubview(armSwitch)
-        armRow.addArrangedSubview(armLabel)
-        stack.addArrangedSubview(armRow)
-        stack.addArrangedSubview(Self.label("Tắt thì phím tắt ngừng hẳn, bàn phím trả lại nguyên vẹn cho bạn.", size: 11))
-        stack.addArrangedSubview(Self.separator())
-
-        stack.addArrangedSubview(Self.header("Ký tự sẽ gõ"))
-        poolPopup = NSPopUpButton(frame: .zero, pullsDown: false)
-        for p in Pool.allCases { poolPopup.addItem(withTitle: p.label) }
-        poolPopup.selectItem(at: Prefs.pool.rawValue)
-        poolPopup.target = self
-        poolPopup.action = #selector(poolChanged)
-        stack.addArrangedSubview(poolPopup)
-
-        customField = NSTextField(string: Prefs.customText)
-        customField.placeholderString = "Nhập nội dung của bạn"
-        customField.delegate = self
-        customField.isHidden = Prefs.pool != .custom
-        stack.addArrangedSubview(customField)
-
-        randomCheck = NSButton(checkboxWithTitle: "Gõ ngẫu nhiên từ bộ ký tự trên", target: self, action: #selector(anyChanged))
-        randomCheck.state = Prefs.randomOrder ? .on : .off
-        stack.addArrangedSubview(randomCheck)
-        stack.addArrangedSubview(Self.label("Bỏ chọn = gõ đúng thứ tự, hết bộ thì quay lại đầu.", size: 11))
-
-        stack.addArrangedSubview(Self.separator())
-        stack.addArrangedSubview(Self.header("Cách kích hoạt"))
-
-        holdRadio = NSButton(radioButtonWithTitle: "Giữ phím tắt thì gõ — thả ra là dừng", target: self, action: #selector(modeChanged))
-        pressRadio = NSButton(radioButtonWithTitle: "Bấm phím tắt một phát rồi chạy", target: self, action: #selector(modeChanged))
-        holdRadio.state = Prefs.holdMode ? .on : .off
-        pressRadio.state = Prefs.holdMode ? .off : .on
-        stack.addArrangedSubview(holdRadio)
-        stack.addArrangedSubview(pressRadio)
-
-        hotkeyButton = NSButton(title: "Phím tắt: \(hotkey.display)  —  bấm để đổi", target: self, action: #selector(recordHotkey))
-        hotkeyButton.bezelStyle = .rounded
-        stack.addArrangedSubview(hotkeyButton)
-
-        stack.addArrangedSubview(Self.separator())
-        stack.addArrangedSubview(Self.header("Số lượng (chỉ áp dụng cho chế độ bấm một phát)"))
-
-        let countRow = NSStackView()
-        countRow.orientation = .horizontal
-        countRow.spacing = 8
-        countField = NSTextField(string: String(Prefs.count))
-        countField.delegate = self
-        countField.preferredMaxLayoutWidth = 80
-        countField.widthAnchor.constraint(equalToConstant: 80).isActive = true
-        infiniteCheck = NSButton(checkboxWithTitle: "Vô hạn", target: self, action: #selector(anyChanged))
-        infiniteCheck.state = Prefs.infinite ? .on : .off
-        countRow.addArrangedSubview(Self.label("Số lượt:", size: 12))
-        countRow.addArrangedSubview(countField)
-        countRow.addArrangedSubview(infiniteCheck)
-        stack.addArrangedSubview(countRow)
-
-        let speedRow = NSStackView()
-        speedRow.orientation = .horizontal
-        speedRow.spacing = 8
-        speedField = NSTextField(string: String(Prefs.charsPerSecond))
-        speedField.delegate = self
-        speedField.widthAnchor.constraint(equalToConstant: 80).isActive = true
-        speedRow.addArrangedSubview(Self.label("Tốc độ:", size: 12))
-        speedRow.addArrangedSubview(speedField)
-        speedRow.addArrangedSubview(Self.label("ký tự/giây", size: 12))
-        stack.addArrangedSubview(speedRow)
-        stack.addArrangedSubview(Self.label(
-            "Vô hạn = gõ tới khi bấm Esc. Tối đa 2000 ký tự/giây, nhưng trên ~1000 "
-            + "một số app bỏ sót lẻ tẻ (~0,7% ở mức 2000) — cần chuẩn từng ký tự thì để ≤200.",
-            size: 11))
-
-        stack.addArrangedSubview(Self.separator())
-        statusLabel = Self.label("Sẵn sàng. Bấm Esc bất cứ lúc nào để dừng khẩn cấp.", size: 12)
-        stack.addArrangedSubview(statusLabel)
-
-        // Trước đây stack chỉ neo trên/trái/phải nên nội dung tràn xuống dưới khung
-        // và biến mất — cửa sổ lại cố định kích thước nên không kéo ra xem được.
-        let doc = FlippedView()
-        doc.translatesAutoresizingMaskIntoConstraints = false
-        doc.addSubview(stack)
-
-        let scroll = NSScrollView()
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        scroll.hasVerticalScroller = true
-        scroll.autohidesScrollers = true
-        scroll.drawsBackground = false
-        scroll.documentView = doc
-
-        let content = NSView()
-        content.addSubview(scroll)
-        NSLayoutConstraint.activate([
-            scroll.topAnchor.constraint(equalTo: content.topAnchor),
-            scroll.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            scroll.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-
-            stack.topAnchor.constraint(equalTo: doc.topAnchor),
-            stack.leadingAnchor.constraint(equalTo: doc.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: doc.trailingAnchor),
-            stack.bottomAnchor.constraint(equalTo: doc.bottomAnchor),
-            doc.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
-        ])
-
-        // Chữ xuống dòng và đường kẻ phải giãn theo bề ngang cửa sổ, không thì
-        // kéo rộng ra sẽ thấy chúng đứng yên một cục lệch bên trái.
-        for v in stack.arrangedSubviews where v is NSBox || v is NSTextField {
-            if let t = v as? NSTextField, t.lineBreakMode != .byWordWrapping { continue }
-            v.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40).isActive = true
-        }
-
-        w.contentView = content
-        w.minSize = NSSize(width: 340, height: 320)
-        w.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-
-        setupStatusItem()
-        startWatching()
-        refreshPermissionWarning()
-        refreshArmLabel()
-        // Đốt 2-3 sự kiện đầu bị hỏng ngay tại đây, lúc rác còn rơi vào cửa sổ
-        // của chính mình chứ không phải vào ô văn bản người dùng đang làm việc.
-        if AXIsProcessTrusted() {
-            let saved = w.firstResponder
-            w.makeFirstResponder(nil)
-            Typist.primePipeline()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { w.makeFirstResponder(saved) }
-        }
-        Log.write("KHỞI ĐỘNG · phím tắt = \(hotkey.display) · chế độ = \(Prefs.holdMode ? "giữ-để-gõ" : "bấm-một-phát") · công tắc = \(Prefs.armed ? "BẬT" : "TẮT") · quyền = \(AXIsProcessTrusted())")
+        Log.write("KHỞI ĐỘNG · phím tắt = \(hotkey.display) · chế độ = \(holdMode ? "giữ-để-gõ" : "bấm-một-phát") · công tắc = \(armed ? "BẬT" : "TẮT") · quyền = \(trusted)")
+        idle()
+        watchTimer = Timer.scheduledTimer(withTimeInterval: 0.04, repeats: true) { [weak self] _ in self?.tick() }
     }
 
-    private static func header(_ s: String) -> NSTextField {
-        let t = label(s, size: 13)
-        t.font = .boldSystemFont(ofSize: 13)
-        return t
+    // ════════ vòng canh phím tắt ════════
+
+    private var isSelfFrontmost: Bool {
+        NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Bundle.main.bundleIdentifier
     }
 
-    private static func label(_ s: String, size: CGFloat) -> NSTextField {
-        let t = NSTextField(labelWithString: s)
-        t.font = .systemFont(ofSize: size)
-        t.lineBreakMode = .byWordWrapping
-        return t
-    }
-
-    private static func separator() -> NSBox {
-        let b = NSBox()
-        b.boxType = .separator
-        return b
-    }
-
-    // ---- thiết lập ----
-
-    @objc private func poolChanged() {
-        let p = Pool(rawValue: poolPopup.indexOfSelectedItem) ?? .all
-        Prefs.pool = p
-        customField.isHidden = p != .custom
-        anyChanged()
-    }
-
-    @objc private func armChanged() {
-        let on = armSwitch.state == .on
-        Prefs.armed = on
-        if !on, running { stop(reason: "Đã tắt — dừng giữa chừng.") }
-        refreshArmLabel()
-    }
-
-    private func refreshArmLabel() {
-        let on = Prefs.armed
-        armLabel.stringValue = on ? "Đang BẬT — phím tắt sẵn sàng" : "Đang TẮT — phím tắt không hoạt động"
-        armMenuItem?.title = on ? "Tắt phím tắt" : "Bật phím tắt"
-        armLabel.textColor = on ? .systemGreen : .secondaryLabelColor
-        if !running {
-            statusLabel.stringValue = on
-                ? "Giữ \(hotkey.display) để bắt đầu gõ · Esc để dừng."
-                : "Đã tắt. Bật công tắc trên cùng để dùng lại phím tắt."
-        }
-    }
-
-    @objc private func modeChanged(_ sender: NSButton) {
-        let hold = (sender == holdRadio)
-        holdRadio.state = hold ? .on : .off
-        pressRadio.state = hold ? .off : .on
-        Prefs.holdMode = hold
-    }
-
-    @objc private func anyChanged() {
-        Prefs.customText = customField.stringValue
-        Prefs.randomOrder = randomCheck.state == .on
-        Prefs.infinite = infiniteCheck.state == .on
-        Prefs.count = max(1, Int(countField.stringValue) ?? 1)
-        Prefs.charsPerSecond = min(2000, max(1, Int(speedField.stringValue) ?? 200))
-    }
-
-    func controlTextDidChange(_ obj: Notification) { anyChanged() }
-
-    // ---- ghi phím tắt ----
-
-    @objc private func recordHotkey() {
-        guard !recording else { endRecording(nil); return }   // bấm lần nữa = huỷ
-        recording = true
-        hotkeyButton.title = "Đang chờ… bấm tổ hợp phím bạn muốn (Esc để huỷ)"
-        recordMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] ev in
-            guard let self else { return ev }
-            if ev.keyCode == 0x35 { self.endRecording(nil); return nil }   // Esc
-            let mods = ev.modifierFlags.intersection([.control, .option, .shift, .command])
-            // Phím trần sẽ cướp phím đó của mọi app khác — bắt buộc có modifier.
-            guard !mods.isEmpty else {
-                self.hotkeyButton.title = "Cần ít nhất một phím bổ trợ (⌃ ⇧ ⌘) — thử lại"
-                return nil
-            }
-            // ⌥ bị từ chối: giữ ⌥+phím là macOS chèn ký tự đặc biệt (†, ˇ, ´…) vào
-            // ô đích. Người dùng sẽ thấy rác xuất hiện và tưởng app gõ sai.
-            guard !mods.contains(.option) else {
-                self.hotkeyButton.title = "Không dùng ⌥ được — nó chèn ký tự lạ. Thử ⌃ ⇧ ⌘"
-                return nil
-            }
-            self.endRecording(Hotkey(keyCode: ev.keyCode, modifiers: mods))
-            return nil
-        }
-        // Không có hạn giờ thì chế độ ghi nằm chờ VÔ THỜI HẠN và sẽ tóm nhầm một
-        // phím bất kỳ bạn bấm nhiều phút sau (đã dính: phím tắt tự thành ⇧⌘`).
-        recordTimeout?.invalidate()
-        recordTimeout = Timer.scheduledTimer(withTimeInterval: 6, repeats: false) { [weak self] _ in
-            self?.endRecording(nil)
-        }
-    }
-
-    private func endRecording(_ hk: Hotkey?) {
-        recording = false
-        recordTimeout?.invalidate()
-        recordTimeout = nil
-        if let m = recordMonitor { NSEvent.removeMonitor(m); recordMonitor = nil }
-        if let hk { hotkey = hk; Prefs.hotkey = hk }
-        hotkeyButton.title = "Phím tắt: \(hotkey.display)  —  bấm để đổi"
-        refreshArmLabel()
-    }
-
-    /// Rời cửa sổ cũng phải huỷ ghi — nếu không, lần sau quay lại bấm phím gì là
-    /// dính phím đó.
-    func windowDidResignKey(_ n: Notification) {
-        if recording { endRecording(nil) }
-    }
-
-    // ---- vòng theo dõi phím tắt ----
-
-    private func startWatching() {
-        watchTimer = Timer.scheduledTimer(withTimeInterval: 0.04, repeats: true) { [weak self] _ in
-            self?.tickWatch()
-        }
-    }
-
-    private func tickWatch() {
-        // Trạng thái quyền phải được soi LIÊN TỤC, không phải chỉ lúc mở app:
-        // người dùng bật quyền xong mà nhãn vẫn đỏ thì tưởng app hỏng (đã dính).
+    private func tick() {
+        // Trạng thái quyền phải được soi LIÊN TỤC: người dùng bật quyền ở app khác
+        // mà không có sự kiện nào báo về, nhãn đứng nguyên là họ tưởng app hỏng.
         permTick += 1
-        if permTick % 12 == 0 { refreshPermissionWarning() }
-
-        // Esc = dừng khẩn cấp, luôn có hiệu lực
-        if running, CGEventSource.keyState(.combinedSessionState, key: 0x35) {
-            stop(reason: "Đã dừng bằng Esc.")
-            return
+        if permTick % 12 == 0 {
+            let now = AXIsProcessTrusted()
+            if now != trusted { trusted = now; idle() }
         }
-        guard !recording else { return }
-        // Công tắc tắt = coi như không có phím tắt nào. Reset wasHeld để lúc bật lại
-        // không bị hiểu nhầm là vừa có một cú bấm.
-        guard Prefs.armed else { wasHeld = false; return }
 
-        // Chẩn đoán ca "bấm mãi không thấy gì": phím chính đúng nhưng bộ modifier
-        // lệch so với phím tắt đã lưu. Không có dòng này thì log im lặng hoàn toàn
-        // và không cách nào biết người dùng đang bấm nhầm tổ hợp.
+        if running, CGEventSource.keyState(.combinedSessionState, key: 0x35) { stop("Đã dừng bằng Esc."); return }
+        if running, Date().timeIntervalSince(runStartedAt) > maxRunSeconds {
+            stop("Đã chạy \(Int(maxRunSeconds)) giây — tự dừng cho an toàn."); return
+        }
+        guard !recording, armed else { wasHeld = false; return }
+
+        // Chẩn đoán ca "bấm mãi không thấy gì": phím chính đúng nhưng modifier lệch.
         if CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(hotkey.keyCode)) {
             let live = NSEvent.modifierFlags.intersection([.control, .option, .shift, .command])
             if live != hotkey.modifiers, permTick - lastMismatchTick > 25 {
@@ -590,225 +317,270 @@ final class MainWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegat
         let held = hotkey.isHeld
         defer { wasHeld = held }
 
-        if Prefs.holdMode {
-            if held && !running { start(infiniteOverride: true) }
-            if !held && running { stop(reason: "Đã thả phím — dừng. Gõ được \(typedThisRun) ký tự.") }
-        } else {
-            if held && !wasHeld {                      // sườn lên = bấm một phát
-                if running { stop(reason: "Đã dừng.") } else { start(infiniteOverride: false) }
-            }
+        if holdMode {
+            if held && !running { start(forceInfinite: true) }
+            if !held && running { stop("Đã thả phím — dừng. Gõ được \(typedThisRun) ký tự.") }
+        } else if held && !wasHeld {
+            if running { stop("Đã dừng.") } else { start(forceInfinite: false) }
         }
     }
 
-    // ---- bơm ký tự ----
+    // ════════ chạy / dừng ════════
 
-    /// Cửa sổ AutoType có đang là app được chọn không.
-    private var isSelfFrontmost: Bool {
-        NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Bundle.main.bundleIdentifier
-    }
-
-    private func start(infiniteOverride: Bool) {
-        anyChanged()
-
-        // Không bao giờ gõ vào chính mình. Nếu không chặn, ký tự rơi thẳng vào các
-        // ô nhập của app và LÀM HỎNG THIẾT LẬP: số lượt bị đè, phím tắt bị đổi —
-        // rồi phím tắt cũ hết tác dụng, trông y như app hỏng. (Đã dính 2026-08-08.)
+    private func start(forceInfinite: Bool) {
+        // Không bao giờ gõ vào chính mình: ký tự sẽ rơi vào các ô nhập của app và
+        // ĐÈ LÊN THIẾT LẬP — số lượt, thậm chí cả phím tắt. (Đã dính 2026-08-08.)
         guard !isSelfFrontmost else {
             Log.write("TỪ CHỐI · cửa sổ AutoType đang được chọn — không tự gõ vào mình")
-            // Người dùng đang NHÌN thẳng vào cửa sổ này, nên lời từ chối phải đập
-            // vào mắt. Bản cũ chỉ đổi một dòng chữ xám nhỏ ở đáy — người dùng bấm
-            // phím tắt ba lần liền rồi kết luận "app hỏng" (log 2026-08-31).
-            shout("⚠︎  Bạn đang ở cửa sổ AutoType nên nó không gõ.\n"
-                + "Chuyển sang app bạn muốn gõ (Notes, Chrome, Figma…) rồi bấm \(hotkey.display) ở đó.")
+            shout("Bạn đang ở cửa sổ AutoType nên nó không gõ. Chuyển sang app bạn muốn gõ rồi bấm \(hotkey.display) ở đó.")
             return
         }
-        chars = Prefs.pool.characters(custom: Prefs.customText)
+        chars = pool.characters(custom: customText)
         guard !chars.isEmpty else {
-            Log.write("TỪ CHỐI · bộ ký tự rỗng")
-            statusLabel.stringValue = "Chưa có ký tự nào để gõ."
-            return
+            Log.write("TỪ CHỐI · bộ ký tự rỗng"); shout("Chưa có ký tự nào để gõ."); return
         }
         guard AXIsProcessTrusted() else {
             Log.write("TỪ CHỐI · thiếu quyền Trợ năng · app đích = \(Log.frontApp)")
-            refreshPermissionWarning()
-            shout("⚠︎  Chưa có quyền Trợ năng nên không gõ được. Bật AutoType trong Trợ năng.")
-            return
+            trusted = false
+            shout("Chưa có quyền Trợ năng nên không gõ được."); return
         }
-        remaining = (infiniteOverride || Prefs.infinite) ? -1 : Prefs.count
-        seqIndex = 0
-        typedThisRun = 0
-        runStartedAt = Date()
-        running = true
-        statusLabel.stringValue = "Đang gõ…"
+        remaining = (forceInfinite || infinite) ? -1 : max(1, count)
+        seqIndex = 0; typedThisRun = 0; runStartedAt = Date(); running = true
+        status = "Đang gõ…"
         Log.write("START · app đích = \(Log.frontApp) · secureInput = \(IsSecureEventInputEnabled()) · pool = \(chars.count) ký tự · remaining = \(remaining)")
-
-        emitTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / tickHz, repeats: true) { [weak self] _ in
-            self?.emit()
-        }
+        emitTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / tickHz, repeats: true) { [weak self] _ in self?.emit() }
     }
 
     private func emit() {
         guard running else { return }
-        // Người dùng bấm ⌘Tab về AutoType giữa chừng → dừng, đừng gõ vào ô của mình.
-        guard !isSelfFrontmost else {
-            stop(reason: "Đã dừng: cửa sổ AutoType được chọn nên không gõ tiếp.")
-            return
-        }
-        guard Date().timeIntervalSince(runStartedAt) < maxRunSeconds else {
-            stop(reason: "Đã tự dừng sau \(Int(maxRunSeconds)) giây (phanh an toàn). Kích hoạt lại để gõ tiếp.")
-            return
-        }
-        let perTick = max(1, Int((Double(Prefs.charsPerSecond) / tickHz).rounded()))
+        guard !isSelfFrontmost else { stop("Đã dừng: cửa sổ AutoType được chọn nên không gõ tiếp."); return }
+
+        let perTick = max(1, Int((Double(charsPerSecond) / tickHz).rounded()))
         var out = ""
         var units = 0
-
         while units < perTick {
             if remaining == 0 { break }
-            if Prefs.randomOrder {
-                // Không force-unwrap trong vòng chạy 2000 lần/giây: `chars` đã
-                // được guard ở start() nhưng một crash ở đây sẽ giết app giữa lúc
-                // đang bơm phím, đúng lúc tệ nhất.
+            if randomOrder {
                 guard let c = chars.randomElement() else { break }
-                out.append(c)                          // 1 lượt = 1 ký tự ngẫu nhiên
+                out.append(c)
             } else {
-                out.append(chars[seqIndex % chars.count])
-                seqIndex += 1
+                out.append(chars[seqIndex % chars.count]); seqIndex += 1
             }
             units += 1
             if remaining > 0 { remaining -= 1 }
         }
-
-        if !out.isEmpty {
-            Typist.type(out)
-            typedThisRun += out.count
-        }
-        if remaining == 0 {
-            stop(reason: "Xong. Đã gõ \(typedThisRun) ký tự.")
-        }
+        if !out.isEmpty { Typist.type(out); typedThisRun += out.count }
+        if remaining == 0 { stop("Xong. Đã gõ \(typedThisRun) ký tự.") }
     }
 
-    /// Báo lỗi kiểu đập-vào-mắt rồi tự trở lại bình thường.
-    private func shout(_ msg: String) {
-        shoutTimer?.invalidate()
-        statusLabel.stringValue = msg
-        statusLabel.textColor = .systemOrange
-        statusLabel.font = .boldSystemFont(ofSize: 12)
-        NSSound.beep()
-        shoutTimer = Timer.scheduledTimer(withTimeInterval: 6, repeats: false) { [weak self] _ in
-            guard let self else { return }
-            self.statusLabel.textColor = .labelColor
-            self.statusLabel.font = .systemFont(ofSize: 12)
-            self.refreshArmLabel()
-        }
-    }
-
-    private func stop(reason: String) {
-        if running {
-            Log.write("STOP  · app đích = \(Log.frontApp) · đã gửi \(typedThisRun) ký tự · \(reason)")
-        }
+    private func stop(_ reason: String) {
+        if running { Log.write("STOP  · app đích = \(Log.frontApp) · đã gửi \(typedThisRun) ký tự · \(reason)") }
         running = false
-        emitTimer?.invalidate()
-        emitTimer = nil
-        statusLabel.stringValue = reason
+        emitTimer?.invalidate(); emitTimer = nil
+        status = reason
     }
 
-    // ---- quyền ----
+    // ════════ thông báo ════════
 
-    @objc private func openAccessibilityPane() {
+    /// Lời từ chối phải đập vào mắt: người dùng đang NHÌN thẳng vào cửa sổ này mà
+    /// vẫn bấm phím tắt ba lần liền rồi kết luận "app hỏng" (log 2026-08-31).
+    private func shout(_ msg: String) {
+        alertTimer?.invalidate()
+        alert = msg
+        NSSound.beep()
+        alertTimer = Timer.scheduledTimer(withTimeInterval: 6, repeats: false) { [weak self] _ in
+            self?.alert = nil; self?.idle()
+        }
+    }
+
+    private func idle() {
+        guard !running else { return }
+        if !trusted { status = "Chưa có quyền Trợ năng." }
+        else if !armed { status = "Đang tắt." }
+        else { status = "Giữ \(hotkey.display) để gõ · Esc để dừng." }
+    }
+
+    func armedChangedExternally() { idle() }
+
+    func openAccessibilitySettings() {
         if let u = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(u)
         }
     }
+}
 
-    private func refreshPermissionWarning() {
-        let ok = AXIsProcessTrusted()
-        let changed = (permWarning.isHidden != ok)
-        permWarning.isHidden = ok
-        permButton.isHidden = ok
-        if !ok {
-            permWarning.stringValue = "⚠︎ Chưa có quyền Trợ năng — app không gõ được.\n"
-                + "Bật AutoType trong Trợ năng. Nếu công tắc ĐÃ bật mà vẫn thấy dòng này:\n"
-                + "chọn AutoType rồi bấm nút − để xoá, sau đó mở lại app."
-        } else if changed {
-            refreshArmLabel()   // dòng trạng thái do công tắc chủ quyết định, không phải chỗ này
+// ════════════════════════ Giao diện ════════════════════════
+//
+// Form + .formStyle(.grouped) là idiom Apple cho cửa sổ dạng thiết lập:
+// nhãn canh trái, điều khiển canh phải, nhóm thành section — cùng ngôn ngữ
+// với System Settings, và khoảng cách/kích thước do hệ thống quyết định thay
+// vì mình tự chỉnh tay (bản AppKit cũ phải dò số pt cho từng hàng).
+// Dùng control chuẩn cũng là cách thừa hưởng ngôn ngữ thiết kế hiện hành của
+// macOS — kể cả Liquid Glass trên macOS 26 — mà không tự vẽ lại gì.
+
+struct ContentView: View {
+    @ObservedObject var engine: Engine
+
+    var body: some View {
+        Form {
+            if !engine.trusted { permissionSection }
+            if let alert = engine.alert { alertSection(alert) }
+
+            Section {
+                Toggle("Bật phím tắt", isOn: $engine.armed)
+            } footer: {
+                Text("Tắt thì phím tắt ngừng hẳn, bàn phím trả lại nguyên vẹn cho bạn.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Ký tự sẽ gõ") {
+                Picker("Bộ ký tự", selection: $engine.pool) {
+                    ForEach(Pool.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                if engine.pool == .custom {
+                    TextField("Nội dung", text: $engine.customText, prompt: Text("Gõ nội dung của bạn"))
+                }
+                Toggle("Gõ ngẫu nhiên", isOn: $engine.randomOrder)
+                Text(engine.randomOrder
+                     ? "Mỗi ký tự bốc ngẫu nhiên từ bộ trên."
+                     : "Gõ đúng thứ tự, hết bộ thì quay lại đầu.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+
+            Section("Cách kích hoạt") {
+                Picker("Chế độ", selection: $engine.holdMode) {
+                    Text("Giữ phím tắt thì gõ, thả là dừng").tag(true)
+                    Text("Bấm một phát rồi chạy").tag(false)
+                }
+                .pickerStyle(.radioGroup)
+                LabeledContent("Phím tắt") { HotkeyField(engine: engine) }
+            }
+
+            Section {
+                LabeledContent("Số lượt") {
+                    HStack(spacing: 8) {
+                        TextField("", value: $engine.count, format: .number)
+                            .labelsHidden().frame(width: 72)
+                            .disabled(engine.infinite)
+                        Toggle("Vô hạn", isOn: $engine.infinite)
+                    }
+                }
+                LabeledContent("Tốc độ") {
+                    HStack(spacing: 8) {
+                        TextField("", value: $engine.charsPerSecond, format: .number)
+                            .labelsHidden().frame(width: 72)
+                        Text("ký tự/giây").foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Số lượng")
+            } footer: {
+                Text("Chỉ áp dụng cho chế độ bấm một phát. Vô hạn sẽ tự dừng sau 60 giây. "
+                     + "Trên ~1000 ký tự/giây một số app bỏ sót lẻ tẻ — cần chuẩn từng ký tự thì để ≤200.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Text(engine.status)
+                    .font(.callout)
+                    .foregroundStyle(engine.running ? Color.accentColor : .secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(minWidth: 360, idealWidth: 400)
+    }
+
+    private var permissionSection: some View {
+        Section {
+            Label {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Chưa có quyền Trợ năng").fontWeight(.semibold)
+                    Text("macOS không cho app nào tự cấp quyền gõ phím. Bật AutoType trong Trợ năng — bật xong dùng được ngay.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Button("Mở mục Trợ năng") { engine.openAccessibilitySettings() }
+                        .padding(.top, 2)
+                }
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            }
         }
     }
 
-    /// Đóng cửa sổ KHÔNG thoát app — phím tắt phải sống tiếp. Đây là điểm khác
-    /// biệt của một tiện ích chạy nền: người dùng đóng cửa sổ để dọn màn hình,
-    /// không phải để tắt chức năng. Mở lại từ biểu tượng bàn phím trên thanh menu.
-    func windowWillClose(_ notification: Notification) {
-        if running { stop(reason: "") }
-    }
-
-    // ---- thanh menu ----
-
-    private func setupStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        let img = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "AutoType")
-        img?.isTemplate = true
-        item.button?.image = img
-        item.button?.toolTip = "AutoType"
-
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Mở cửa sổ AutoType", action: #selector(showWindowFromMenu), keyEquivalent: ""))
-        menu.addItem(.separator())
-        armMenuItem = NSMenuItem(title: "Tắt phím tắt", action: #selector(toggleArmFromMenu), keyEquivalent: "")
-        menu.addItem(armMenuItem)
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Thoát AutoType", action: #selector(quitFromMenu), keyEquivalent: "q"))
-        for mi in menu.items { mi.target = self }
-        item.menu = menu
-        statusItem = item
-    }
-
-    func reopenWindow() { showWindowFromMenu() }
-
-    @objc private func showWindowFromMenu() {
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    @objc private func toggleArmFromMenu() {
-        let on = !Prefs.armed
-        Prefs.armed = on
-        armSwitch.state = on ? .on : .off
-        if !on, running { stop(reason: "Đã tắt — dừng giữa chừng.") }
-        refreshArmLabel()
-    }
-
-    @objc private func quitFromMenu() {
-        stop(reason: "")
-        watchTimer?.invalidate()
-        NSApp.terminate(nil)
+    private func alertSection(_ msg: String) -> some View {
+        Section {
+            Label(msg, systemImage: "exclamationmark.circle.fill")
+                .foregroundStyle(.orange)
+        }
     }
 }
 
-// ============================ Vào chương trình ============================
+/// Ô ghi phím tắt. Bấm để ghi, tự huỷ sau 6 giây hoặc khi mất focus — chế độ
+/// "đang chờ input" không có hạn giờ từng tóm nhầm một tổ hợp bấm nhiều phút
+/// sau đó và đổi phím tắt sau lưng người dùng (đã dính 2 lần).
+struct HotkeyField: View {
+    @ObservedObject var engine: Engine
+    @State private var monitor: Any?
+    @State private var timeout: Timer?
+    @State private var hint: String?
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    let controller = MainWindowController()
-
-    func applicationDidFinishLaunching(_ n: Notification) {
-        // Xin quyền Trợ năng ngay lần đầu; các lần sau prompt không hiện lại.
-        let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(opts)
-        controller.show()
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(engine.recording ? "Đang chờ… bấm tổ hợp" : engine.hotkey.display) { toggle() }
+                .frame(minWidth: 150)
+            if let hint { Text(hint).font(.caption).foregroundStyle(.orange) }
+        }
+        .onDisappear { end(nil) }
     }
 
-    /// false: đóng cửa sổ không thoát app. App sống tiếp trên thanh menu để phím
-    /// tắt còn hoạt động — thoát hẳn bằng menu "Thoát AutoType".
-    func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
+    private func toggle() {
+        if engine.recording { end(nil); return }
+        engine.recording = true
+        hint = nil
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { ev in
+            if ev.keyCode == 0x35 { end(nil); return nil }           // Esc = huỷ
+            let mods = ev.modifierFlags.intersection([.control, .option, .shift, .command])
+            guard !mods.isEmpty else { hint = "Cần ít nhất một phím bổ trợ"; return nil }
+            // ⌥ là phím SINH KÝ TỰ: ⌥T ra "†", ⌥⇧T ra "ˇ" — giữ phím tắt có ⌥ là
+            // macOS chèn rác vào ô đích trước khi app kịp gõ.
+            guard !mods.contains(.option) else { hint = "Không dùng ⌥ — nó chèn ký tự lạ"; return nil }
+            end(Hotkey(keyCode: ev.keyCode, modifiers: mods))
+            return nil
+        }
+        timeout = Timer.scheduledTimer(withTimeInterval: 6, repeats: false) { _ in end(nil) }
+    }
 
-    /// Đóng cửa sổ rồi bấm icon trên Dock → mở lại, thay vì không có phản hồi gì.
-    func applicationShouldHandleReopen(_ s: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { controller.reopenWindow() }
-        return true
+    private func end(_ hk: Hotkey?) {
+        engine.recording = false
+        timeout?.invalidate(); timeout = nil
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        if let hk { engine.hotkey = hk; hint = nil }
+        engine.armedChangedExternally()
     }
 }
 
-let app = NSApplication.shared
-app.setActivationPolicy(.regular)
-let delegate = AppDelegate()
-app.delegate = delegate
-app.run()
+// ════════════════════════ Vào chương trình ════════════════════════
+
+@main
+struct AutoTypeApp: App {
+    @StateObject private var engine = Engine()
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Scene {
+        Window("AutoType", id: "main") {
+            ContentView(engine: engine)
+        }
+        // .contentSize = cửa sổ tự lấy kích thước theo nội dung. Bản AppKit cũ
+        // phải tự chỉnh minSize/defaultSize bằng tay và vẫn ra quá rộng.
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+
+        MenuBarExtra("AutoType", systemImage: "keyboard") {
+            Button("Mở cửa sổ AutoType") { NSApp.activate(ignoringOtherApps: true); openWindow(id: "main") }
+            Divider()
+            Toggle("Bật phím tắt", isOn: Binding(get: { engine.armed }, set: { engine.armed = $0 }))
+            Divider()
+            Button("Thoát AutoType") { NSApp.terminate(nil) }
+        }
+    }
+}

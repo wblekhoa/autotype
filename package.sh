@@ -16,7 +16,9 @@ rm -rf "$OUT" "$ZIP" .build-tmp
 mkdir -p .build-tmp "$OUT/Contents/MacOS" "$OUT/Contents/Resources"
 
 for arch in arm64 x86_64; do
-  swiftc -O -swift-version 5 \
+  # -parse-as-library: bắt buộc khi điểm vào là `@main struct App` trong file
+# KHÔNG tên main.swift — thiếu cờ này trình biên dịch coi phần thân là script.
+swiftc -O -swift-version 5 -parse-as-library \
     -target "${arch}-apple-macos${MIN_OS}" \
     -framework AppKit -framework CoreGraphics -framework Carbon \
     -o ".build-tmp/AutoType-${arch}" "$SRC"

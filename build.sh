@@ -15,7 +15,9 @@ mkdir -p "$OUT/Contents/MacOS" "$OUT/Contents/Resources"
 
 # -swift-version 5: Swift 6 bật strict concurrency, app một-file dùng state trên
 # main thread sẽ đỏ hàng loạt mà không đổi được gì về hành vi.
-swiftc -O -swift-version 5 \
+# -parse-as-library: bắt buộc khi điểm vào là `@main struct App` trong file
+# KHÔNG tên main.swift — thiếu cờ này trình biên dịch coi phần thân là script.
+swiftc -O -swift-version 5 -parse-as-library \
   -framework AppKit -framework CoreGraphics -framework Carbon \
   -o "$OUT/Contents/MacOS/AutoType" "$SRC"
 
