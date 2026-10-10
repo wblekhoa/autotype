@@ -31,7 +31,7 @@ enum Pool: Int, CaseIterable {
     }
 
     /// Kho ký tự dùng cho chế độ ngẫu nhiên, và là chuỗi gõ ra ở chế độ tuần tự.
-    func characters(custom: String) -> [Character] {
+    func characters(custom: String) -> [Character] {  // AT-TYPE-001
         switch self {
         case .letters: return Array("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
         case .digits:  return Array("0123456789")
@@ -88,7 +88,7 @@ enum Typist {
     /// Nên phải đốt mấy sự kiện đó lúc khởi động, khi cửa sổ AutoType đang ở
     /// trước và KHÔNG ô nhập nào giữ focus — rác rơi vào hư không thay vì vào ô
     /// văn bản của người dùng. Mồi bằng key 255 không có tác dụng (đã đo).
-    static func primePipeline() {
+    static func primePipeline() {  // AT-TYPE-006
         for _ in 0..<3 {
             var u = Array("\u{200B}".utf16)      // zero-width space: có rơi ra cũng vô hình
             guard let d = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
@@ -101,7 +101,7 @@ enum Typist {
         }
     }
 
-    static func type(_ text: String) {
+    static func type(_ text: String) {  // AT-TYPE-005
         guard !text.isEmpty else { return }
         let src = Typist.source
         for ch in text {
@@ -143,7 +143,7 @@ struct Hotkey: Equatable {
 
     /// Phím đang được GIỮ hay không. `CGEventSource.keyState` đọc trạng thái vật lý,
     /// nên không cần bắt sự kiện keyUp — thả tay là lần poll kế tiếp thấy false ngay.
-    var isHeld: Bool {
+    var isHeld: Bool {  // AT-KEY-002
         guard isSet else { return false }
         guard CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(keyCode)) else { return false }
         let live = NSEvent.modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -172,7 +172,7 @@ struct Prefs {
         // object(forKey:) chứ KHÔNG phải integer(forKey:) — integer trả 0 khi key
         // chưa tồn tại, mà 0 lại đúng bằng .letters nên mặc định ra sai bộ ký tự.
         get {
-            guard let raw = d.object(forKey: "v2.pool") as? Int else { return .all }
+            guard let raw = d.object(forKey: "v2.pool") as? Int else { return .all }  // AT-TYPE-011
             return Pool(rawValue: raw) ?? .all
         }
         set { d.set(newValue.rawValue, forKey: "v2.pool") }
@@ -211,7 +211,7 @@ struct Prefs {
             guard let k = d.object(forKey: "v2.hotkeyCode") as? Int else {
                 // ⌃⌘T — CỐ Ý KHÔNG có ⌥. Option là phím sinh ký tự đặc biệt: giữ
                 // ⌥T là macOS chèn ngay "†"/"ˇ" vào ô trước khi app kịp gõ gì.
-                return Hotkey(keyCode: 0x11, modifiers: [.control, .command])
+                return Hotkey(keyCode: 0x11, modifiers: [.control, .command])  // AT-KEY-001
             }
             let m = d.object(forKey: "v2.hotkeyMods") as? UInt ?? 0
             return Hotkey(keyCode: UInt16(k), modifiers: NSEvent.ModifierFlags(rawValue: m))
@@ -232,7 +232,7 @@ struct Prefs {
 final class Engine: ObservableObject {
 
     // ── thiết lập (ghi thẳng xuống UserDefaults khi đổi) ──
-    @Published var armed: Bool          { didSet { Prefs.armed = armed; if !armed, running { stop("Đã tắt — dừng giữa chừng.") } } }
+    @Published var armed: Bool          { didSet { Prefs.armed = armed; if !armed, running { stop("Đã tắt — dừng giữa chừng.") } } }  // AT-KEY-005
     @Published var pool: Pool           { didSet { Prefs.pool = pool } }
     @Published var customText: String   { didSet { Prefs.customText = customText } }
     @Published var randomOrder: Bool    { didSet { Prefs.randomOrder = randomOrder } }
@@ -303,19 +303,19 @@ final class Engine: ObservableObject {
         // Trạng thái quyền phải được soi LIÊN TỤC: người dùng bật quyền ở app khác
         // mà không có sự kiện nào báo về, nhãn đứng nguyên là họ tưởng app hỏng.
         permTick += 1
-        if permTick % 12 == 0 {
+        if permTick % 12 == 0 {  // AT-KEY-009
             let now = AXIsProcessTrusted()
             if now != trusted { trusted = now; idle() }
         }
 
-        if running, CGEventSource.keyState(.combinedSessionState, key: 0x35) { stop("Đã dừng bằng Esc."); return }
-        if running, Date().timeIntervalSince(runStartedAt) > maxRunSeconds {
+        if running, CGEventSource.keyState(.combinedSessionState, key: 0x35) { stop("Đã dừng bằng Esc."); return }  // AT-TYPE-007
+        if running, Date().timeIntervalSince(runStartedAt) > maxRunSeconds {  // AT-TYPE-008
             stop("Đã chạy \(Int(maxRunSeconds)) giây — tự dừng cho an toàn."); return
         }
-        guard !recording, armed else { wasHeld = false; return }
+        guard !recording, armed else { wasHeld = false; return }  // AT-KEY-006
 
         // Chẩn đoán ca "bấm mãi không thấy gì": phím chính đúng nhưng modifier lệch.
-        if CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(hotkey.keyCode)) {
+        if CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(hotkey.keyCode)) {  // AT-KEY-008
             let live = NSEvent.modifierFlags.intersection([.control, .option, .shift, .command])
             if live != hotkey.modifiers, permTick - lastMismatchTick > 25 {
                 lastMismatchTick = permTick
@@ -326,10 +326,10 @@ final class Engine: ObservableObject {
         let held = hotkey.isHeld
         defer { wasHeld = held }
 
-        if holdMode {
+        if holdMode {  // AT-KEY-003
             if held && !running { start(forceInfinite: true) }
             if !held && running { stop("Đã thả phím — dừng. Gõ được \(typedThisRun) ký tự.") }
-        } else if held && !wasHeld {
+        } else if held && !wasHeld {  // AT-KEY-004
             if running { stop("Đã dừng.") } else { start(forceInfinite: false) }
         }
     }
@@ -339,13 +339,13 @@ final class Engine: ObservableObject {
     private func start(forceInfinite: Bool) {
         // Không bao giờ gõ vào chính mình: ký tự sẽ rơi vào các ô nhập của app và
         // ĐÈ LÊN THIẾT LẬP — số lượt, thậm chí cả phím tắt. (Đã dính 2026-08-08.)
-        guard !isSelfFrontmost else {
+        guard !isSelfFrontmost else {  // AT-TYPE-009
             Log.write("TỪ CHỐI · cửa sổ AutoType đang được chọn — không tự gõ vào mình")
             shout("Bạn đang ở cửa sổ AutoType nên nó không gõ. Chuyển sang app bạn muốn gõ rồi bấm \(hotkey.display) ở đó.")
             return
         }
         chars = pool.characters(custom: customText)
-        guard !chars.isEmpty else {
+        guard !chars.isEmpty else {  // AT-TYPE-010
             Log.write("TỪ CHỐI · bộ ký tự rỗng"); shout("Chưa có ký tự nào để gõ."); return
         }
         guard AXIsProcessTrusted() else {
@@ -353,7 +353,7 @@ final class Engine: ObservableObject {
             trusted = false
             shout("Chưa có quyền Trợ năng nên không gõ được."); return
         }
-        remaining = (forceInfinite || infinite) ? -1 : max(1, count)
+        remaining = (forceInfinite || infinite) ? -1 : max(1, count)  // AT-TYPE-004
         seqIndex = 0; typedThisRun = 0; runStartedAt = Date(); running = true
         status = "Đang gõ…"
         Log.write("START · app đích = \(Log.frontApp) · secureInput = \(IsSecureEventInputEnabled()) · pool = \(chars.count) ký tự · remaining = \(remaining)")
@@ -362,14 +362,14 @@ final class Engine: ObservableObject {
 
     private func emit() {
         guard running else { return }
-        guard !isSelfFrontmost else { stop("Đã dừng: cửa sổ AutoType được chọn nên không gõ tiếp."); return }
+        guard !isSelfFrontmost else { stop("Đã dừng: cửa sổ AutoType được chọn nên không gõ tiếp."); return }  // AT-TYPE-009
 
-        let perTick = max(1, Int((Double(charsPerSecond) / tickHz).rounded()))
+        let perTick = max(1, Int((Double(charsPerSecond) / tickHz).rounded()))  // AT-TYPE-003
         var out = ""
         var units = 0
         while units < perTick {
             if remaining == 0 { break }
-            if randomOrder {
+            if randomOrder {  // AT-TYPE-002
                 guard let c = chars.randomElement() else { break }
                 out.append(c)
             } else {
@@ -648,7 +648,7 @@ struct HotkeyField: View {
         .onDisappear { end(nil) }
     }
 
-    private func toggle() {
+    private func toggle() {  // AT-KEY-007
         if engine.recording { end(nil); return }
         engine.recording = true
         hint = nil
