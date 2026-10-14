@@ -1,3 +1,12 @@
+---
+status: paused
+owner: Lê Khoa
+started: 2026-08-30
+current-phase: doc-truth-gate
+tags: [area/testing, area/docs]
+summary: Campaign to verify the AutoType typing engine end-to-end and reach the release bar (verify.sh exit 0); rounds 1-3 and the doc-truth-gate are done, remaining items wait on the owner (Accessibility grant, prime-pipeline check with permission, Install AutoType.command keep/drop).
+---
+
 current_focus: doc-truth-gate — sửa DEVELOPMENT.md khớp mã SwiftUI + gate bắt doc-drift
 (luồng này chỉ GHI; con trỏ dùng chung nên ghi tên để quy được trách nhiệm)
 
