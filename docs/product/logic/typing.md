@@ -5,6 +5,8 @@ product: autotype
 title: "AutoType — Typing engine (logic)"
 status: active
 updated: 2026-10-11
+summary: "How one hotkey-started run turns into characters posted to the focused app (sets, rate, count) and how every run is guaranteed to stop."
+tags: [area/input-events, area/permissions, area/hotkeys, stack/swift, surface/macos]
 reqPrefix: AT-TYPE
 relations:
   specifiedBy: [autotype-ux-typing]
