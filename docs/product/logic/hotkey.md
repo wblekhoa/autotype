@@ -5,6 +5,8 @@ product: autotype
 title: "AutoType — Hotkey and activation (logic)"
 status: active
 updated: 2026-10-11
+summary: "Rules (AT-KEY) for when a typing run starts and stops: the default no-option hotkey, exact modifier matching by polling key state, hold vs one-shot modes, master switch and hotkey recording."
+tags: [area/hotkeys, area/input-events, area/permissions, stack/swift, surface/macos]
 reqPrefix: AT-KEY
 relations:
   specifiedBy: [autotype-ux-hotkey]

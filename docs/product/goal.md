@@ -5,6 +5,8 @@ product: autotype
 title: "AutoType — Product goal"
 status: active
 updated: 2026-10-11
+summary: "Why AutoType exists: hold a hotkey on macOS to stream controlled characters into any focused field, with no monitoring or network, plus its audience, success measures and non-goals."
+tags: [area/input-events, area/hotkeys, stack/swift, surface/macos]
 ---
 # AutoType — Product goal
 

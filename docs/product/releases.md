@@ -5,6 +5,8 @@ product: autotype
 title: "AutoType — Releases"
 status: active
 updated: 2026-10-11
+summary: "User-facing changes, shipped REQ-IDs and channel of each AutoType GitHub release (v2.0, v2.1, v2.2), newest first."
+tags: [area/release, surface/macos]
 relations:
   presentedBy: [github:wblekhoa/autotype/releases]
 ---

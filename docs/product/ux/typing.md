@@ -5,6 +5,8 @@ product: autotype
 title: "AutoType — Typing settings and runs (UX)"
 status: active
 updated: 2026-10-11
+summary: "Current UX of the settings window for what gets typed: character set, order, count and rate, the running status line, refusal messages and how a run ends."
+tags: [area/input-events, stack/swiftui, surface/macos]
 relations:
   specifies: [autotype:AutoType.swift]
   dependsOn: [autotype-ux-hotkey]

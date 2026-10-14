@@ -5,6 +5,8 @@ product: autotype
 title: "AutoType — Decisions"
 status: active
 updated: 2026-10-11
+summary: "Append-only record of why AutoType is built as it is: Swift CGEvent engine, safety rails, rate ceiling, pipeline warm-up, SwiftUI rewrite, install paths, transparency claims and doc gates."
+tags: [area/input-events, area/permissions, area/release, area/signing, area/testing, stack/swift, surface/macos]
 ---
 # AutoType — Decisions (append-only, newest first)
 

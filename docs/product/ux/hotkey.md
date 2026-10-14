@@ -5,6 +5,8 @@ product: autotype
 title: "AutoType — Hotkey, modes and on/off switch (UX)"
 status: active
 updated: 2026-10-11
+summary: "Current UX of how a typing run is triggered: the master on/off switch, hold vs one-shot mode picker, hotkey recorder and its hints, menu-bar menu and hotkey diagnostics."
+tags: [area/hotkeys, stack/swiftui, surface/macos]
 relations:
   specifies: [autotype:AutoType.swift]
   sharesSurfaceWith: [autotype-ux-typing]
