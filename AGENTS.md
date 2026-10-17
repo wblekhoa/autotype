@@ -1,5 +1,3 @@
-If this checkout lives under `~/JAK` (the owner's workspace), read `~/JAK/AGENTS.md` first (map + floor rules), then `~/JAK/companies/app-studio/AGENTS.md`. Standalone clones can ignore this line.
-
 # AutoType — agent instructions
 
 Small macOS app in one Swift file (`AutoType.swift`, Apple frameworks only). Overview and privacy promises: `README.md`;
